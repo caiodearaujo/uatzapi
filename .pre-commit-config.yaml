@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: go-fmt
+        name: Format Go code
+        entry: gofmt -w
+        language: system
+        files: \api\.go$
