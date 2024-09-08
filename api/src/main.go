@@ -9,6 +9,7 @@ import (
 	"go.mau.fi/whatsmeow/store"
 	"google.golang.org/protobuf/proto"
 	"whatsgoingon/events"
+	"whatsgoingon/helpers"
 	"whatsgoingon/routes"
 )
 
@@ -22,6 +23,7 @@ func main() {
 	}
 
 	// Channel for init a listener in a goroutine
+	helpers.CreateTablesFromDataPkg()
 	go events.InitListener()
 
 	r.Use(cors.Default())

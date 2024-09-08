@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
+	"log"
 	"time"
 )
 
@@ -78,9 +79,14 @@ func ConvertEventToStoredMessage(v events.Message, client *whatsmeow.Client) (St
 		messageContent.Text = v.Message.GetExtendedTextMessage().GetText()
 		messageContent.ContentMimeType = "text/plain"
 		return messageContent, nil
+	} else if v.Message != nil {
+		messageContent.MediaType = "UNKNOWN"
+		messageContent.ContentMimeType = "text/plain"
+		messageContent.Text = v.Message.String()
 	} else {
 		fmt.Println(v)
-		panic(errors.New("tipo de mensagem não reconhecida"))
+		log.Fatalf("tipo de mensagem não reconhecida: %T", v.Message)
+		return messageContent, errors.New("Message type not recognized")
 	}
-
+	return messageContent, nil
 }

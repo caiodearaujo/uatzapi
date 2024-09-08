@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -20,8 +21,8 @@ import (
 
 // Códigos de erro
 var (
-	dbLog                 = waLog.Stdout("Database", "DEBUG", true)
-	wmLog                 = waLog.Stdout("WhatsMeow", "DEBUG", true)
+	dbLog                 = waLog.Stdout("Database", "WARN", true)
+	wmLog                 = waLog.Stdout("WhatsMeow", "WARN", true)
 	container             *sqlstore.Container
 	client                *whatsmeow.Client
 	once                  sync.Once
@@ -58,7 +59,7 @@ func connectToDatabase() (*sqlstore.Container, error) {
 }
 
 func GetClient() (*whatsmeow.Client, error) {
-	waLog.Stdout("WhatsappHelper", "DEBUG", true)
+	waLog.Stdout("WhatsappHelper", "WARN", true)
 	var err error
 	if client == nil {
 		once.Do(func() {
@@ -91,7 +92,7 @@ func GetClient() (*whatsmeow.Client, error) {
 }
 
 func GetClientById(clientID string) (*whatsmeow.Client, error) {
-	waLog.Stdout("WhatsappHelper", "DEBUG", true)
+	waLog.Stdout("WhatsappHelper", "WARN", true)
 	var err error
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
@@ -208,4 +209,10 @@ func GetDeviceList() ([]Device, error) {
 	}
 
 	return deviceList, nil
+}
+
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %s", msg, err)
+	}
 }

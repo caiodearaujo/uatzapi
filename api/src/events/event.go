@@ -1,22 +1,23 @@
 package events
 
 import (
-	"encoding/json"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/ztrue/tracerr"
+	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
 	"log"
+	"time"
 	"whatsgoingon/data"
 	"whatsgoingon/helpers"
 	myStore "whatsgoingon/store"
 )
 
 func InitListener() {
+	helpers.BulkUpdateDeviceHandlerOff()
 	clientIds, err := helpers.GetAllClientIDs()
 	failOnError(err, "Get clientIds failed")
 
 	for _, clientId := range clientIds {
-		StartMessageListener(clientId)
+		AddToListeners(clientId)
 	}
 
 }
@@ -27,58 +28,48 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func StartMessageListener(clientID string) {
+func AddToListeners(clientID string) {
+	err, client := StartMessageListener(clientID)
+	if err != nil {
+		log.Printf("Error starting message listener for %s: %v", clientID, err)
+	} else {
+		res, err := helpers.InsertIntoTable(&data.DeviceHandler{
+			Device: data.Device{
+				DeviceID:     clientID,
+				PushName:     client.Store.PushName,
+				BusinessName: client.Store.BusinessName,
+				Timestamp:    time.Now(),
+			},
+			Active: true,
+		})
+		if err != nil {
+			log.Printf("Error inserting into table: %v", err)
+		} else {
+			log.Printf("Inserted into table: %v", res)
+		}
+	}
+}
+
+func StartMessageListener(clientID string) (error, *whatsmeow.Client) {
 	client, err := helpers.GetClientById(clientID)
 	if err != nil {
 		tracerr.Print(err)
+		return err, nil
 	} else {
+		webhookUrl, _ := helpers.GetWebhookURLForClientID(clientID)
 		client.AddEventHandler(func(evt interface{}) {
-			log.Printf("Event received")
+			log.Printf("Event received %T", evt)
 			switch v := evt.(type) {
 			case *events.Message:
 				if err, content := myStore.SaveMessage(*v, client); err != nil {
 					tracerr.Print(err)
 				} else {
-					sendToRabbitMQ(*content, clientID) // async
+					helpers.SendMessageToRedis(*content, clientID)      // async
+					helpers.SendWebhook(*content, clientID, webhookUrl) // async
 				}
 			}
 		})
 		log.Printf("Starting message listener for %s", clientID)
 	}
-}
-
-func sendToRabbitMQ(content data.StoredMessage, clientID string) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-	defer ch.Close()
-
-	q, err := ch.QueueDeclare(
-		clientID,
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	failOnError(err, "Failed to declare a queue")
-
-	body, err := json.Marshal(content)
-	failOnError(err, "Failed to encode a message")
-
-	err = ch.Publish(
-		"",
-		q.Name,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		})
-	failOnError(err, "Failed to publish a message")
-
-	log.Printf(" [x] Sent to client %s", clientID)
+	return nil, client
 }

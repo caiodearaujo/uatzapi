@@ -9,6 +9,6 @@ import (
 
 func StartListener(c *gin.Context) {
 	clientID := c.Query("client_id")
-	events.StartMessageListener(clientID)
+	events.AddToListeners(clientID)
 	c.Status(http.StatusOK)
 }
