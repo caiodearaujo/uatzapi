@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -26,28 +27,30 @@ func SendWebhook(message data.StoredMessage, clientID string, webhookURL string)
 	if webhookURL != "" {
 		jsonData, err := json.Marshal(message)
 		if err != nil {
-			failOnError(err, "Failed to marshal message to JSON")
+			log.Printf("Failed to marshal message to JSON: %v", err)
 			return
 		}
 
 		// Create a new HTTP request with the JSON data.
 		resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
 		if err != nil {
-			failOnError(err, "Failed to send HTTP request")
+			log.Printf("Failed to send HTTP request: %v", err)
 			return
 		}
 
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				failOnError(err, "Failed to close response body")
+				log.Printf("Failed to close response body: %v", err)
+				return
 			}
 		}(resp.Body)
 
 		// Read the response body.
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			failOnError(err, "Failed to read response body")
+			log.Printf("Failed to read response body: %v", err)
+			return
 		}
 		// Insert the webhook response into the table.
 		statusCode := resp.StatusCode

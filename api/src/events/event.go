@@ -1,14 +1,15 @@
 package events
 
 import (
-	"github.com/ztrue/tracerr"
-	"go.mau.fi/whatsmeow"
-	"go.mau.fi/whatsmeow/types/events"
 	"log"
 	"time"
 	"whatsgoingon/data"
 	"whatsgoingon/helpers"
 	myStore "whatsgoingon/store"
+
+	"github.com/ztrue/tracerr"
+	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/types/events"
 )
 
 func InitListener() {
