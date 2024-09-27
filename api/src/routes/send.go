@@ -2,11 +2,20 @@ package routes
 
 import (
 	"net/http"
+	"time"
 	"whatsgoingon/helpers"
 	"whatsgoingon/store"
 
 	"github.com/gin-gonic/gin"
 )
+
+type MessageResponse struct {
+	Status    			string 	  `json:"status"`
+	Timestamp 			time.Time `json:"timestamp"`
+	ID        			string 	  `json:"id"`
+	DeviceID  			string    `json:"device_id"`
+	ReicipientNumber 	string    `json:"reicipient_number"`
+}
 
 func SendMessage(c *gin.Context) {
 	deviceID := c.Query("device_id")
@@ -36,5 +45,13 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"Status": "Ok", "timestamp": resp.Timestamp, "ID": resp.ID, "ServerID": resp.ServerID})
+	response := MessageResponse{
+		Status:    			"Ok",
+		Timestamp: 			resp.Timestamp,
+		ID:        			resp.ID,
+		DeviceID:  			deviceID,
+		ReicipientNumber: 	number_reicipient,
+	}
+
+	c.JSON(200, response)
 }
