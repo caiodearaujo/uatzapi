@@ -1,22 +1,19 @@
 package helpers
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"time"
+	"whatsgoingon/store"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/ztrue/tracerr"
 	"go.mau.fi/whatsmeow"
-	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	waLog "go.mau.fi/whatsmeow/util/log"
-	"google.golang.org/protobuf/proto"
 )
 
 // Códigos de erro
@@ -33,14 +30,16 @@ var (
 	ErrMessageSending     = errors.New("failed to send the message")
 )
 
-type Device struct {
+type DeviceResponse struct {
 	ID           string `json:"id"`
 	Number       string `json:"number"`
 	PushName     string `json:"push_name"`
 	BusinessName string `json:"business_name"`
 	Contacts     int    `json:"contacts"`
+	Timestamp	 time.Time `json:"timestamp"`
 }
 
+// ConnectToDatabase connects to the database.
 func connectToDatabase() (*sqlstore.Container, error) {
 	dbUser := os.Getenv("pg_username")
 	dbPwd := os.Getenv("pg_password")
@@ -58,6 +57,7 @@ func connectToDatabase() (*sqlstore.Container, error) {
 	return container, nil
 }
 
+// GetClient returns a WhatsApp client.
 func GetClient() (*whatsmeow.Client, error) {
 	waLog.Stdout("WhatsappHelper", "WARN", true)
 	var err error
@@ -91,35 +91,48 @@ func GetClient() (*whatsmeow.Client, error) {
 	return client, nil
 }
 
-func GetClientById(clientID string) (*whatsmeow.Client, error) {
+// GetWhatsAppClientByJID returns a WhatsApp client by JID.
+func GetWhatsAppClientByJID(whatsappID string) (*whatsmeow.Client, error) {
 	waLog.Stdout("WhatsappHelper", "WARN", true)
-	var err error
+	
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
 	container, _ = connectToDatabase()
 
-	jid, _ := types.ParseJID(clientID)
+	jid, _ := types.ParseJID(whatsappID)
+	
 	deviceStore, err := container.GetDevice(jid)
-
 	if err != nil {
-		err = tracerr.Wrap(fmt.Errorf("%w: %v", ErrDeviceNotFound, err))
+		err = tracerr.Wrap(fmt.Errorf("1-----------> %w: %v", ErrDeviceNotFound, err))
 		return nil, err
 	}
+
 	client := whatsmeow.NewClient(deviceStore, wmLog)
 	if client.Store.ID == nil {
-		return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrClientConnection, client.Store.ID))
+		return nil, tracerr.Wrap(fmt.Errorf("2--------> %w: %v", ErrClientConnection, client.Store.ID))
 	}
+	
 	if !client.IsConnected() {
 		err := client.Connect()
 		if err != nil {
-			return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrClientConnection, err))
+			return nil, tracerr.Wrap(fmt.Errorf("3------> %w: %v", ErrClientConnection, err))
 		}
 	}
 	return client, nil
 }
 
-func GetAllClientIDs() ([]string, error) {
+// GetWhatsappClientByDeviceID returns a WhatsApp client by device ID.
+func GetWhatsappClientByDeviceID(deviceID string) (*whatsmeow.Client, error) {
+	device, _ := store.GetDeviceById(deviceID)
+	client, err := GetWhatsAppClientByJID(device.JID)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func GetAllWhatsappIDs() ([]string, error) {
 	container, err := connectToDatabase()
 	if err != nil {
 		return nil, err // Error already wrapped
@@ -130,13 +143,13 @@ func GetAllClientIDs() ([]string, error) {
 		return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrDeviceNotFound, err))
 	}
 
-	var clientIDs []string
+	var deviceIDs []string
 
 	for _, device := range deviceStore {
-		clientIDs = append(clientIDs, device.ID.String())
+		deviceIDs = append(deviceIDs, device.ID.String())
 	}
 
-	return clientIDs, nil
+	return deviceIDs, nil
 }
 
 func NewClient() (*whatsmeow.Client, error) {
@@ -151,33 +164,7 @@ func NewClient() (*whatsmeow.Client, error) {
 	return client, nil
 }
 
-func SendMessage(message string, recipient string) error {
-	_, err := GetClient()
-	if err != nil {
-		return err
-	}
-
-	destination := types.JID{
-		User:   recipient,
-		Server: types.DefaultUserServer,
-	}
-
-	encryptedMessage := &waE2E.Message{
-		Conversation: proto.String(message),
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Timeout context
-	defer cancel()
-
-	_, err = client.SendMessage(ctx, destination, encryptedMessage)
-	if err != nil {
-		return tracerr.Wrap(fmt.Errorf("%w: %v", ErrMessageSending, err))
-	}
-
-	return nil
-}
-
-func GetDeviceList() ([]Device, error) {
+func GetDeviceList() ([]DeviceResponse, error) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
@@ -191,7 +178,7 @@ func GetDeviceList() ([]Device, error) {
 		return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrDeviceNotFound, err))
 	}
 
-	var deviceList []Device
+	var deviceList []DeviceResponse
 	for _, device := range devices {
 		allContacts, err := device.Contacts.GetAllContacts()
 		if err != nil {
@@ -199,20 +186,20 @@ func GetDeviceList() ([]Device, error) {
 			continue // Skip this device and continue with the next one
 		}
 
-		deviceList = append(deviceList, Device{
-			ID:           device.ID.String(),
-			Number:       device.ID.User,
-			PushName:     device.PushName,
-			BusinessName: device.BusinessName,
-			Contacts:     len(allContacts),
-		})
+		if dvc, err := store.GetDeviceByJID(device.ID.String()); err != nil {
+			continue
+		} else {
+			deviceList = append(deviceList, DeviceResponse{
+				ID:           dvc.DeviceID(),
+				Number:       device.ID.User,
+				PushName:     device.PushName,
+				BusinessName: device.BusinessName,
+				Contacts:     len(allContacts),
+				Timestamp:    dvc.CreatedAt,
+			})
+		}
+		
 	}
 
 	return deviceList, nil
-}
-
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
-	}
 }

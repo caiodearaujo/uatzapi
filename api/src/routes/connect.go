@@ -10,6 +10,7 @@ import (
 	"github.com/skip2/go-qrcode"
 	"net/http"
 	"whatsgoingon/helpers"
+	"whatsgoingon/events"
 )
 
 func Connect(c *gin.Context) {
@@ -34,6 +35,7 @@ func Connect(c *gin.Context) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
+			client.AddEventHandler(events.NewClientHandler(client))
 			c.JSON(http.StatusOK, gin.H{"qrCode": qrCodeBase64})
 			return
 		}

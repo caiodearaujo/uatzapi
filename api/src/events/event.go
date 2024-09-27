@@ -1,76 +1,117 @@
 package events
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"time"
-	"whatsgoingon/data"
-	"whatsgoingon/helpers"
-	myStore "whatsgoingon/store"
 
-	"github.com/ztrue/tracerr"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
+
+	"whatsgoingon/data"
+	"whatsgoingon/helpers"
+	"whatsgoingon/store"
+	myStore "whatsgoingon/store"
 )
 
+// Initialize the listener by getting all device IDs and adding them to the listener.
 func InitListener() {
-	helpers.BulkUpdateDeviceHandlerOff()
-	clientIds, err := helpers.GetAllClientIDs()
-	failOnError(err, "Get clientIds failed")
+	store.BulkUpdateDeviceHandlerOff()
+	
+	whatsappIDs, err := helpers.GetAllWhatsappIDs()
+	helpers.FailOnError(err, "Get deviceIDs failed")
 
-	for _, clientId := range clientIds {
-		AddToListeners(clientId)
+	for _, jid := range whatsappIDs {
+		AddToListeners(jid)
 	}
 
 }
-
-func failOnError(err error, msg string) {
+// Add client to message listeners
+func AddToListeners(whatsappID string) {
+	_, err := StartMessageListener(whatsappID)
 	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
+		helpers.FailOnError(err, fmt.Sprintf("Error starting message listener for %s", whatsappID))
+		return
+	}
+
+	device, err := store.GetDeviceByJID(whatsappID)
+	if err != nil {
+		helpers.FailOnError(err, fmt.Sprintf("Error getting device by JID: %v", whatsappID))
+		return
+	}
+
+	// Insert into table if the listener started successfully.
+	deviceHandler := &data.DeviceHandler{
+		DeviceID: device.DeviceID(),
+		ActiveAt: time.Now(),
+		Active: true,
+	}
+
+	if res, err := store.InsertIntoTable(deviceHandler); err != nil {
+		helpers.FailOnError(err, fmt.Sprintf("Error inserting into table: %v", res))
 	}
 }
 
-func AddToListeners(clientID string) {
-	err, client := StartMessageListener(clientID)
+// Start the message listener for the device ID.
+func StartMessageListener(whatsappID string) (*whatsmeow.Client, error) {
+	client, err := helpers.GetWhatsAppClientByJID(whatsappID)
 	if err != nil {
-		log.Printf("Error starting message listener for %s: %v", clientID, err)
-	} else {
-		res, err := helpers.InsertIntoTable(&data.DeviceHandler{
-			Device: data.Device{
-				DeviceID:     clientID,
-				PushName:     client.Store.PushName,
-				BusinessName: client.Store.BusinessName,
-				Timestamp:    time.Now(),
-			},
-			Active: true,
-		})
-		if err != nil {
-			log.Printf("Error inserting into table: %v", err)
-		} else {
-			log.Printf("Inserted into table: %v", res)
+		helpers.FailOnError(err, fmt.Sprintf("Error getting client by ID: %v", whatsappID))
+	}
+
+	device, _ := store.GetDeviceByJID(whatsappID)
+	webhookUrl, webhookActive, _ := store.GetWebhookURLByDeviceID(device.DeviceID())
+	
+	//Add event handler for incoming messages
+	client.AddEventHandler(func(evt interface{}) {
+		log.Printf("2 ---> Event received %T", evt)
+		
+		// Handle the message event.
+		if msgEvent, ok := evt.(*events.Message); ok {
+			handleMessageEvent(msgEvent, client, device.DeviceID(), webhookUrl, webhookActive)
+		}
+	})
+
+	log.Printf("Starting message listener for %s", device.DeviceID())
+	return client, nil
+}
+
+// handle the message event, save it to he store, and send async tasks
+func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, deviceID, webhhookURL string, webhookActive bool) {
+	ctx := context.Background()
+	// Save message to store.
+	err, content := myStore.SaveMessage(*msgEvent, client)
+	if err != nil {
+		helpers.FailOnError(err, "Error saving message to store")
+		return
+	}
+
+	// Process sending to Redis and Webhook concurrently.
+	go helpers.SendMessageToRedis(ctx, *content, deviceID)
+	go helpers.SendWebhook(*content, deviceID, webhhookURL, webhookActive)
+}
+
+// NewClientHandler returns a function that handles the client events.
+func NewClientHandler(client *whatsmeow.Client) func(interface{}) {
+	return func(evt interface{}) {
+		log.Printf("1 ---> Event received %T", evt)
+		if _, ok := evt.(*events.Connected); ok {
+			storeDevice := client.Store
+			device := &data.Device{
+					JID: 		  storeDevice.ID.String(),
+					PushName:     storeDevice.PushName,
+					BusinessName: storeDevice.BusinessName,
+					CreatedAt:    time.Now(),
+					Active: 	  true,
+				}
+			device, err := store.InsertDeviceIfNotExists(device)
+			if err != nil {
+				helpers.FailOnError(err, "Error inserting new device or device already exists")
+				return
+			}
+			AddToListeners(device.JID)
+			
 		}
 	}
-}
-
-func StartMessageListener(clientID string) (error, *whatsmeow.Client) {
-	client, err := helpers.GetClientById(clientID)
-	if err != nil {
-		tracerr.Print(err)
-		return err, nil
-	} else {
-		webhookUrl, _ := helpers.GetWebhookURLForClientID(clientID)
-		client.AddEventHandler(func(evt interface{}) {
-			log.Printf("Event received %T", evt)
-			switch v := evt.(type) {
-			case *events.Message:
-				if err, content := myStore.SaveMessage(*v, client); err != nil {
-					tracerr.Print(err)
-				} else {
-					helpers.SendMessageToRedis(*content, clientID)      // async
-					helpers.SendWebhook(*content, clientID, webhookUrl) // async
-				}
-			}
-		})
-		log.Printf("Starting message listener for %s", clientID)
-	}
-	return nil, client
 }
