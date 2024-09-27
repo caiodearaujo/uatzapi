@@ -65,7 +65,7 @@ func StartMessageListener(whatsappID string) (*whatsmeow.Client, error) {
 	
 	//Add event handler for incoming messages
 	client.AddEventHandler(func(evt interface{}) {
-		log.Printf("Event received %T", evt)
+		log.Printf("2 ---> Event received %T", evt)
 		
 		// Handle the message event.
 		if msgEvent, ok := evt.(*events.Message); ok {
@@ -95,7 +95,7 @@ func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, devi
 // NewClientHandler returns a function that handles the client events.
 func NewClientHandler(client *whatsmeow.Client) func(interface{}) {
 	return func(evt interface{}) {
-		log.Printf("Event received %T", evt)
+		log.Printf("1 ---> Event received %T", evt)
 		if _, ok := evt.(*events.Connected); ok {
 			storeDevice := client.Store
 			device := &data.Device{

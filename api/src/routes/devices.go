@@ -1,10 +1,11 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
-	_ "github.com/mattn/go-sqlite3"
 	"net/http"
 	"whatsgoingon/helpers"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func Devices(c *gin.Context) {

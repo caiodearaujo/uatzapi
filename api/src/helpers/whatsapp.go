@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 	"whatsgoingon/store"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -29,12 +30,13 @@ var (
 	ErrMessageSending     = errors.New("failed to send the message")
 )
 
-type Device struct {
+type DeviceResponse struct {
 	ID           string `json:"id"`
 	Number       string `json:"number"`
 	PushName     string `json:"push_name"`
 	BusinessName string `json:"business_name"`
 	Contacts     int    `json:"contacts"`
+	Timestamp	 time.Time `json:"timestamp"`
 }
 
 // ConnectToDatabase connects to the database.
@@ -162,7 +164,7 @@ func NewClient() (*whatsmeow.Client, error) {
 	return client, nil
 }
 
-func GetDeviceList() ([]Device, error) {
+func GetDeviceList() ([]DeviceResponse, error) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
@@ -176,7 +178,7 @@ func GetDeviceList() ([]Device, error) {
 		return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrDeviceNotFound, err))
 	}
 
-	var deviceList []Device
+	var deviceList []DeviceResponse
 	for _, device := range devices {
 		allContacts, err := device.Contacts.GetAllContacts()
 		if err != nil {
@@ -184,13 +186,19 @@ func GetDeviceList() ([]Device, error) {
 			continue // Skip this device and continue with the next one
 		}
 
-		deviceList = append(deviceList, Device{
-			ID:           device.ID.String(),
-			Number:       device.ID.User,
-			PushName:     device.PushName,
-			BusinessName: device.BusinessName,
-			Contacts:     len(allContacts),
-		})
+		if dvc, err := store.GetDeviceByJID(device.ID.String()); err != nil {
+			continue
+		} else {
+			deviceList = append(deviceList, DeviceResponse{
+				ID:           dvc.DeviceID(),
+				Number:       device.ID.User,
+				PushName:     device.PushName,
+				BusinessName: device.BusinessName,
+				Contacts:     len(allContacts),
+				Timestamp:    dvc.CreatedAt,
+			})
+		}
+		
 	}
 
 	return deviceList, nil
