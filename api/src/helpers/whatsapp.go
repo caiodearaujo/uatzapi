@@ -31,7 +31,7 @@ var (
 )
 
 type DeviceResponse struct {
-	ID           string `json:"id"`
+	ID           int    `json:"id"`
 	Number       string `json:"number"`
 	PushName     string `json:"push_name"`
 	BusinessName string `json:"business_name"`
@@ -57,40 +57,6 @@ func connectToDatabase() (*sqlstore.Container, error) {
 	return container, nil
 }
 
-// GetClient returns a WhatsApp client.
-func GetClient() (*whatsmeow.Client, error) {
-	waLog.Stdout("WhatsappHelper", "WARN", true)
-	var err error
-	if client == nil {
-		once.Do(func() {
-			dbMutex.Lock()
-			defer dbMutex.Unlock()
-
-			container, err = connectToDatabase()
-			if err != nil {
-				return // Error already wrapped
-			}
-
-			deviceStore, err := container.GetFirstDevice()
-			if err != nil {
-				err = tracerr.Wrap(fmt.Errorf("%w: %v", ErrDeviceNotFound, err))
-				return
-			}
-			client = whatsmeow.NewClient(deviceStore, wmLog)
-		})
-	}
-	if err != nil {
-		return nil, err
-	}
-	if !client.IsConnected() {
-		err := client.Connect()
-		if err != nil {
-			return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrClientConnection, err))
-		}
-	}
-	return client, nil
-}
-
 // GetWhatsAppClientByJID returns a WhatsApp client by JID.
 func GetWhatsAppClientByJID(whatsappID string) (*whatsmeow.Client, error) {
 	waLog.Stdout("WhatsappHelper", "WARN", true)
@@ -104,26 +70,26 @@ func GetWhatsAppClientByJID(whatsappID string) (*whatsmeow.Client, error) {
 	
 	deviceStore, err := container.GetDevice(jid)
 	if err != nil {
-		err = tracerr.Wrap(fmt.Errorf("1-----------> %w: %v", ErrDeviceNotFound, err))
+		err = tracerr.Wrap(fmt.Errorf("%w: %v", ErrDeviceNotFound, err))
 		return nil, err
 	}
 
 	client := whatsmeow.NewClient(deviceStore, wmLog)
 	if client.Store.ID == nil {
-		return nil, tracerr.Wrap(fmt.Errorf("2--------> %w: %v", ErrClientConnection, client.Store.ID))
+		return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrClientConnection, client.Store.ID))
 	}
 	
 	if !client.IsConnected() {
 		err := client.Connect()
 		if err != nil {
-			return nil, tracerr.Wrap(fmt.Errorf("3------> %w: %v", ErrClientConnection, err))
+			return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrClientConnection, err))
 		}
 	}
 	return client, nil
 }
 
 // GetWhatsappClientByDeviceID returns a WhatsApp client by device ID.
-func GetWhatsappClientByDeviceID(deviceID string) (*whatsmeow.Client, error) {
+func GetWhatsappClientByDeviceID(deviceID int) (*whatsmeow.Client, error) {
 	device, _ := store.GetDeviceById(deviceID)
 	client, err := GetWhatsAppClientByJID(device.JID)
 	if err != nil {
@@ -190,7 +156,7 @@ func GetDeviceList() ([]DeviceResponse, error) {
 			continue
 		} else {
 			deviceList = append(deviceList, DeviceResponse{
-				ID:           dvc.DeviceID(),
+				ID:           dvc.ID,
 				Number:       device.ID.User,
 				PushName:     device.PushName,
 				BusinessName: device.BusinessName,

@@ -43,7 +43,7 @@ func AddToListeners(whatsappID string) {
 
 	// Insert into table if the listener started successfully.
 	deviceHandler := &data.DeviceHandler{
-		DeviceID: device.DeviceID(),
+		DeviceID: device.ID,
 		ActiveAt: time.Now(),
 		Active: true,
 	}
@@ -61,24 +61,22 @@ func StartMessageListener(whatsappID string) (*whatsmeow.Client, error) {
 	}
 
 	device, _ := store.GetDeviceByJID(whatsappID)
-	webhookUrl, webhookActive, _ := store.GetWebhookURLByDeviceID(device.DeviceID())
+	webhookUrl, webhookActive, _ := store.GetWebhookURLByDeviceID(device.ID)
 	
 	//Add event handler for incoming messages
 	client.AddEventHandler(func(evt interface{}) {
-		log.Printf("2 ---> Event received %T", evt)
-		
 		// Handle the message event.
 		if msgEvent, ok := evt.(*events.Message); ok {
-			handleMessageEvent(msgEvent, client, device.DeviceID(), webhookUrl, webhookActive)
+			handleMessageEvent(msgEvent, client, device.ID, webhookUrl, webhookActive)
 		}
 	})
 
-	log.Printf("Starting message listener for %s", device.DeviceID())
+	log.Printf("Starting message listener for %s", device.ID)
 	return client, nil
 }
 
 // handle the message event, save it to he store, and send async tasks
-func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, deviceID, webhhookURL string, webhookActive bool) {
+func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, deviceID int, webhhookURL string, webhookActive bool) {
 	ctx := context.Background()
 	// Save message to store.
 	err, content := myStore.SaveMessage(*msgEvent, client)
@@ -95,7 +93,6 @@ func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, devi
 // NewClientHandler returns a function that handles the client events.
 func NewClientHandler(client *whatsmeow.Client) func(interface{}) {
 	return func(evt interface{}) {
-		log.Printf("1 ---> Event received %T", evt)
 		if _, ok := evt.(*events.Connected); ok {
 			storeDevice := client.Store
 			device := &data.Device{

@@ -3,6 +3,7 @@ package helpers
 import (
 	"context"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/go-redis/redis/v8"
@@ -52,7 +53,7 @@ func PingRedis(ctx context.Context) error {
 	return client.Ping(ctx).Err()
 }
 
-func SendMessageToRedis(ctx context.Context, content data.StoredMessage, deviceID string) {
+func SendMessageToRedis(ctx context.Context, content data.StoredMessage, deviceID int) {
 	// Ping the Redis server and check if any errors occurred.
 	if err := PingRedis(ctx); err != nil {
 		FailOnError(err, "Failed to ping Redis server")
@@ -70,7 +71,7 @@ func SendMessageToRedis(ctx context.Context, content data.StoredMessage, deviceI
 	}
 
 	// Save the JSON to Redis using the client's Set method.
-	if err := client.RPush(ctx, deviceID, jsonContent).Err(); err != nil {
+	if err := client.RPush(ctx, strconv.Itoa(deviceID), jsonContent).Err(); err != nil {
 		FailOnError(err, "Failed to save JSON to Redis")
 		return
 	}

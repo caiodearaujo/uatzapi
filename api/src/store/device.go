@@ -3,12 +3,13 @@ package store
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 	"whatsgoingon/data"
 )
 
 // GetDeviceIDBydeviceID retrieves the device ID by the device ID.
-func GetJIDByDeviceID(deviceID string) (string, error) {
+func GetJIDByDeviceID(deviceID int) (string, error) {
 	db := GetBunConnection()
 
 	device := new(data.Device)
@@ -23,7 +24,7 @@ func GetJIDByDeviceID(deviceID string) (string, error) {
 	return device.JID, nil
 }
 
-func GetDeviceById(deviceID string) (data.Device, error) {
+func GetDeviceById(deviceID int) (data.Device, error) {
 	db := GetBunConnection()
 
 	device := new(data.Device)
@@ -72,7 +73,7 @@ func InsertDeviceIfNotExists(device *data.Device) (*data.Device, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert device into table: %v", err)
 		}
-		fmt.Printf("Device inserted successfully " + device.DeviceID() )
+		fmt.Printf("Device inserted successfully " + strconv.FormatInt(int64(device.ID), 10))
 		return device, nil
 	}
 	return nil, fmt.Errorf("device already exists")
@@ -86,7 +87,7 @@ func BulkUpdateDeviceHandlerOff() error {
 	_, err := db.NewUpdate().
 		Model((*data.DeviceHandler)(nil)).
 		Set("active = false").
-		Set("inactive_at = ?", time.Now()).
+		Set("inactived_at = ?", time.Now()).
 		Where("active = true").
 		Exec(context.Background())
 	
@@ -100,7 +101,7 @@ func BulkUpdateDeviceHandlerOff() error {
 }
 
 // GetWebhookURLFordeviceID retrieves the webhook URL for the given device ID.
-func GetWebhookURLByDeviceID(deviceID string) (string, bool, error) {
+func GetWebhookURLByDeviceID(deviceID int) (string, bool, error) {
 	db := GetBunConnection()
 
 	deviceWebhook := new(data.DeviceWebhook)
@@ -117,7 +118,7 @@ func GetWebhookURLByDeviceID(deviceID string) (string, bool, error) {
 }
 
 // GetTop20WebhookMessages retrieves the top 20 webhook messages.
-func GetTop20WebhookMessagesByDeviceID(deviceID string) []data.WebhookMessage {
+func GetTop20WebhookMessagesByDeviceID(deviceID int) []data.WebhookMessage {
 	db := GetBunConnection()
 
 	var webhookMessages []data.WebhookMessage
@@ -137,13 +138,12 @@ func GetTop20WebhookMessagesByDeviceID(deviceID string) []data.WebhookMessage {
 }
 
 // InactiveWebhookURLFordeviceID deactivates the webhook URL for the given device ID.
-func InactiveWebhookURLByDeviceID(deviceID string) error {
+func InactiveWebhookURLByDeviceID(deviceID int) error {
 	db := GetBunConnection()
 
 	_, err := db.NewUpdate().
 		Model((*data.DeviceWebhook)(nil)).
 		Set("active = false").
-		Set("inactive_at = ?", time.Now()).
 		Where("id = ?", deviceID).
 		Exec(context.Background())
 	

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 	"whatsgoingon/helpers"
 	"whatsgoingon/store"
@@ -13,18 +14,18 @@ type MessageResponse struct {
 	Status    			string 	  `json:"status"`
 	Timestamp 			time.Time `json:"timestamp"`
 	ID        			string 	  `json:"id"`
-	DeviceID  			string    `json:"device_id"`
+	DeviceID  			int    `json:"device_id"`
 	ReicipientNumber 	string    `json:"reicipient_number"`
 }
 
 func SendMessage(c *gin.Context) {
-	deviceID := c.Query("device_id")
-	if deviceID == "" {
+	dvcID := c.Query("device_id")
+	if dvcID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "number is required"})
 		return
 	}
 	number_reicipient := c.Query("number_reicipient")
-	if deviceID == "" {
+	if number_reicipient == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "number is required"})
 		return
 	}
@@ -33,6 +34,8 @@ func SendMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "message is required"})
 		return
 	}
+	
+	deviceID, _ := strconv.Atoi(dvcID)
 
 	jid, err := store.GetJIDByDeviceID(deviceID)
 	if err != nil {

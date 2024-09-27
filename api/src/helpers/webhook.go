@@ -3,6 +3,7 @@ package helpers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 )
 
 // InsertWebhookResponseToTable inserts the webhook response into the table.
-func insertWebhookResponseToTable(deviceID string, webhhookURL string, body string, response string, code int) {
+func insertWebhookResponseToTable(deviceID int, webhhookURL string, body string, response string, code int) {
 	_, err := store.InsertIntoTable(&data.WebhookMessage{
 		Message:      body,
 		Response:     response,
@@ -30,7 +31,7 @@ func insertWebhookResponseToTable(deviceID string, webhhookURL string, body stri
 }
 
 // InactiveWebhookURLFordeviceID deactivates the webhook URL for the given device ID.
-func inactiveWebhookIfThereAreErrors(deviceID string, webhookURL string) {
+func inactiveWebhookIfThereAreErrors(deviceID int, webhookURL string) {
 	if currentMinute := time.Now().Minute(); currentMinute%5 != 0 {
 		webhookMessages := store.GetTop20WebhookMessagesByDeviceID(deviceID)
 		
@@ -56,7 +57,7 @@ func AllMessagesNon200(messages []data.WebhookMessage) bool {
 }
 
 // SendWebhook sends the webhook message.
-func SendWebhook(message data.StoredMessage, deviceID string, webhookURL string, webhookActive bool) {
+func SendWebhook(message data.StoredMessage, deviceID int, webhookURL string, webhookActive bool) {
 	if webhookURL != "" && webhookActive {
 		jsonData, err := json.Marshal(message)
 		if err != nil {
@@ -90,4 +91,35 @@ func SendWebhook(message data.StoredMessage, deviceID string, webhookURL string,
 		responseBody := strings.ReplaceAll(string(body), "\n", "")
 		insertWebhookResponseToTable(deviceID, webhookURL, string(jsonData), responseBody, statusCode)
 	}
+}
+
+func AddWebhook(deviceID int, webhookURL string) (error, bool) {
+	device, err := store.GetDeviceById(deviceID)
+	if err != nil {
+		return fmt.Errorf("error getting device by ID: %v", err), false
+	}
+	
+	_, err = store.InsertIntoTable(&data.DeviceWebhook{
+		DeviceID:         device.ID,
+		Device: 		  &device,
+		WebhookURL: 	  webhookURL,
+		Active:     	  true,
+		Timestamp: 		  time.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("error inserting webhook into table: %v", err), false
+	}
+	return nil, true
+}
+
+func RemoveWebhook(deviceID int) (error, bool) {
+	err := store.InactiveWebhookURLByDeviceID(deviceID)
+	if err != nil {
+		return fmt.Errorf("error deactivating webhook URL: %v", err), false
+	}
+	return nil, true
+}
+
+func ListWebhooks() ([]data.DeviceWebhook, error) {
+	return store.GetWebhookURLs()
 }

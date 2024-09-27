@@ -37,6 +37,12 @@ func main() {
 
 	r.GET("/send-message", routes.SendMessage)
 
+	r.GET("/webhook", routes.WebhookList)
+
+	r.POST("/webhook", routes.WebhookAdd)
+
+	r.DELETE("/webhook/:deviceID", routes.WebhookRemove)
+
 	r.GET("/historical", routes.HistoricalConversation)
 
 	r.Run(":8080")
