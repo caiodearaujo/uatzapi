@@ -8,23 +8,56 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
 	"whatsgoingon/data"
+	"whatsgoingon/store"
 )
 
-func insertWebhookResponseToTable(body string, response string, code int) {
-	_, err := InsertIntoTable(&data.WebhookMessage{
+// InsertWebhookResponseToTable inserts the webhook response into the table.
+func insertWebhookResponseToTable(deviceID string, webhhookURL string, body string, response string, code int) {
+	_, err := store.InsertIntoTable(&data.WebhookMessage{
 		Message:      body,
 		Response:     response,
 		CodeResponse: code,
 		Timestamp:    time.Now(),
+		DeviceID:     deviceID,
+		WebhookURL:   webhhookURL,
 	})
 	if err != nil {
-		failOnError(err, "Error inserting webhook response into table")
+		FailOnError(err, "Error inserting webhook response into table")
+	}
+	inactiveWebhookIfThereAreErrors(deviceID, webhhookURL)
+}
+
+// InactiveWebhookURLFordeviceID deactivates the webhook URL for the given device ID.
+func inactiveWebhookIfThereAreErrors(deviceID string, webhookURL string) {
+	if currentMinute := time.Now().Minute(); currentMinute%5 != 0 {
+		webhookMessages := store.GetTop20WebhookMessagesByDeviceID(deviceID)
+		
+		// Get all CodeResponse from webhookMessages and check if there are any errors.
+		if ok := AllMessagesNon200(webhookMessages); ok {
+			if err := store.InactiveWebhookURLByDeviceID(deviceID); err != nil {
+				FailOnError(err, "Error deactivating webhook URL")
+				return
+			}
+			log.Printf("Webhook URL %s deactivated for device ID: %v", webhookURL, deviceID)
+		}
 	}
 }
 
-func SendWebhook(message data.StoredMessage, clientID string, webhookURL string) {
-	if webhookURL != "" {
+// AllMessagesNon200 checks if all messages are not 200.
+func AllMessagesNon200(messages []data.WebhookMessage) bool {
+	for _, message := range messages {
+		if message.CodeResponse == 200 {
+			return false
+		}
+	}
+	return true
+}
+
+// SendWebhook sends the webhook message.
+func SendWebhook(message data.StoredMessage, deviceID string, webhookURL string, webhookActive bool) {
+	if webhookURL != "" && webhookActive {
 		jsonData, err := json.Marshal(message)
 		if err != nil {
 			log.Printf("Failed to marshal message to JSON: %v", err)
@@ -55,6 +88,6 @@ func SendWebhook(message data.StoredMessage, clientID string, webhookURL string)
 		// Insert the webhook response into the table.
 		statusCode := resp.StatusCode
 		responseBody := strings.ReplaceAll(string(body), "\n", "")
-		insertWebhookResponseToTable(string(jsonData), responseBody, statusCode)
+		insertWebhookResponseToTable(deviceID, webhookURL, string(jsonData), responseBody, statusCode)
 	}
 }

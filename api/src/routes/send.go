@@ -1,14 +1,21 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"whatsgoingon/helpers"
+	"whatsgoingon/store"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SendMessage(c *gin.Context) {
-	number := c.Query("number")
-	if number == "" {
+	deviceID := c.Query("device_id")
+	if deviceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "number is required"})
+		return
+	}
+	number_reicipient := c.Query("number_reicipient")
+	if deviceID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "number is required"})
 		return
 	}
@@ -18,13 +25,16 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
-	err := helpers.SendMessage(number, message)
-
+	jid, err := store.GetJIDByDeviceID(deviceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "step": "on connect"})
+		return
+	}
+	resp, err := helpers.SendMessage(jid, message, number_reicipient)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "step": "on connect"})
 		return
 	}
 
-	c.JSON(200, gin.H{"Status": "Ok"})
-	return
+	c.JSON(200, gin.H{"Status": "Ok", "timestamp": resp.Timestamp, "ID": resp.ID, "ServerID": resp.ServerID})
 }

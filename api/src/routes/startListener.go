@@ -1,14 +1,15 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
-	_ "github.com/mattn/go-sqlite3"
 	"net/http"
 	"whatsgoingon/events"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func StartListener(c *gin.Context) {
-	clientID := c.Query("client_id")
-	events.AddToListeners(clientID)
+	deviceID := c.Query("client_id")
+	events.AddToListeners(deviceID)
 	c.Status(http.StatusOK)
 }
