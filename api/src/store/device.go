@@ -101,23 +101,6 @@ func BulkUpdateDeviceHandlerOff() error {
 	return nil
 }
 
-// GetWebhookURLFordeviceID retrieves the webhook URL for the given device ID.
-func GetWebhookURLByDeviceID(deviceID int) (string, bool, error) {
-	db := GetBunConnection()
-
-	deviceWebhook := new(data.DeviceWebhook)
-	err := db.NewSelect().
-		Model(deviceWebhook).
-		Where("id = ? AND active = ?", deviceID, true).
-		Scan(context.Background())
-
-	if err != nil {
-		handler.FailOnError(err, "Failed to get webhook URL for device ID")
-		return "", false, err
-	}
-	return deviceWebhook.WebhookURL, deviceWebhook.Active, nil
-}
-
 // GetTop20WebhookMessages retrieves the top 20 webhook messages.
 func GetTop20WebhookMessagesByDeviceID(deviceID int) []data.WebhookMessage {
 	db := GetBunConnection()

@@ -44,6 +44,8 @@ func main() {
 	r.GET("/webhook", routes.WebhookList)
 	r.POST("/webhook", routes.WebhookAdd)
 	r.DELETE("/webhook/:deviceID", routes.WebhookRemove)
+	r.GET("/webhook/:deviceID", routes.WebhookByDevice)
+	r.GET("/webhook/:deviceID/all", routes.WebhookListByDevice)
 
 	r.Run(":8080")
 }

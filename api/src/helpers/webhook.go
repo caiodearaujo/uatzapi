@@ -95,20 +95,9 @@ func SendWebhook(message data.StoredMessage, deviceID int, webhookURL string, we
 }
 
 func AddWebhook(deviceID int, webhookURL string) (error, bool) {
-	device, err := store.GetDeviceById(deviceID)
+	err, _ := store.CreateNewWebhook(deviceID, webhookURL)
 	if err != nil {
-		return fmt.Errorf("error getting device by ID: %v", err), false
-	}
-
-	_, err = store.InsertIntoTable(&data.DeviceWebhook{
-		DeviceID:   device.ID,
-		Device:     &device,
-		WebhookURL: webhookURL,
-		Active:     true,
-		Timestamp:  time.Now(),
-	})
-	if err != nil {
-		return fmt.Errorf("error inserting webhook into table: %v", err), false
+		return err, false
 	}
 	return nil, true
 }
@@ -123,4 +112,12 @@ func RemoveWebhook(deviceID int) (error, bool) {
 
 func ListWebhooks() ([]data.DeviceWebhook, error) {
 	return store.GetWebhookURLs()
+}
+
+func ListWebhooksByDeviceID(deviceID int) ([]data.DeviceWebhook, error) {
+	return store.GetWebhooksByDeviceID(deviceID)
+}
+
+func GetWebhookActiveByDeviceID(deviceID int) (data.DeviceWebhook, error) {
+	return store.GetWebhookActiveByDeviceID(deviceID)
 }
