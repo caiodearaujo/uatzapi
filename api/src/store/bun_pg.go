@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"whatsgoingon/data"
+	"whatsgoingon/handler"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
@@ -16,7 +17,7 @@ import (
 )
 
 var (
-	dbOnce sync.Once
+	dbOnce      sync.Once
 	bunInstance *bun.DB
 )
 
@@ -53,7 +54,7 @@ func GetBunConnection() *bun.DB {
 	dbOnce.Do(func() {
 		pgDB, err := getPostgresConnection()
 		if err != nil {
-			fmt.Errorf("Failed to connect to PostgreSQL: %v", err)
+			handler.FailOnError(err, "Failed to connect to PostgreSQL")
 		}
 		bunInstance = bun.NewDB(pgDB, pgdialect.New())
 	})
@@ -69,9 +70,7 @@ func CreateTablesFromDataPkg() {
 
 	for _, structType := range structs {
 		if _, err := db.NewCreateTable().Model(structType).IfNotExists().Exec(ctx); err != nil {
-			fmt.Errorf("Failed to create table: %s", structType)
-		} else {
-			fmt.Printf("Table created successfully: %s", structType)
+			handler.FailOnError(err, fmt.Sprintf("Failed to create table: %s", structType))
 		}
 	}
 }
