@@ -29,21 +29,21 @@ func main() {
 
 	r.Use(cors.Default())
 
-	r.GET("/connect", routes.Connect)
+	// Device Routes
+	r.GET("/connect", routes.DeviceNew)
+	r.GET("/device", routes.DeviceList)
 
-	r.GET("/devices", routes.Devices)
-
+	// Listener Routes
 	r.GET("/start_listener", routes.StartListener)
 
-	r.GET("/send-message", routes.SendMessage)
+	// Message Routes
+	r.POST("/send/message", routes.SendMessage)
+	r.POST("/send/sticker", routes.SendSticker)
 
+	// Webhook Routes
 	r.GET("/webhook", routes.WebhookList)
-
 	r.POST("/webhook", routes.WebhookAdd)
-
 	r.DELETE("/webhook/:deviceID", routes.WebhookRemove)
-
-	r.GET("/historical", routes.HistoricalConversation)
 
 	r.Run(":8080")
 }

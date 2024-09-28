@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"whatsgoingon/data"
+	"whatsgoingon/handler"
 )
 
 const (
@@ -18,7 +19,7 @@ const (
 
 var (
 	redisClientInstance *redis.Client
-	redisOnce 			sync.Once
+	redisOnce           sync.Once
 )
 
 // Get environment variable with a fallback value.
@@ -32,7 +33,7 @@ func getEnv(key, fallback string) string {
 // Initialize a Redis client once using the sync.Once pattern to ensure a singleton instance.
 func getRedisClient() *redis.Client {
 	redisHostname := getEnv("redis_hostname", "localhost")
-	redisPort     := getEnv("redis_port", "6379")
+	redisPort := getEnv("redis_port", "6379")
 	redisPassword := getEnv("redis_password", "admin")
 
 	redisOnce.Do(func() {
@@ -43,7 +44,7 @@ func getRedisClient() *redis.Client {
 			DB:       WhatsAppMessageContentList,
 		})
 	})
-	
+
 	return redisClientInstance
 }
 
@@ -56,25 +57,25 @@ func PingRedis(ctx context.Context) error {
 func SendMessageToRedis(ctx context.Context, content data.StoredMessage, deviceID int) {
 	// Ping the Redis server and check if any errors occurred.
 	if err := PingRedis(ctx); err != nil {
-		FailOnError(err, "Failed to ping Redis server")
+		handler.FailOnError(err, "Failed to ping Redis server")
 		return
 	}
-	
+
 	// Create a new Redis client.
 	client := getRedisClient()
 
 	// Marshall content to JSON
-	jsonContent, err := MarshalMessageToJSON(content); 
+	jsonContent, err := MarshalMessageToJSON(content)
 	if err != nil {
-		FailOnError(err, "Failed to marshal content to JSON")
+		handler.FailOnError(err, "Failed to marshal content to JSON")
 		return
 	}
 
 	// Save the JSON to Redis using the client's Set method.
 	if err := client.RPush(ctx, strconv.Itoa(deviceID), jsonContent).Err(); err != nil {
-		FailOnError(err, "Failed to save JSON to Redis")
+		handler.FailOnError(err, "Failed to save JSON to Redis")
 		return
 	}
-	
+
 	log.Printf("Message sent to Redis successfully for deviceID: %s", deviceID)
 }

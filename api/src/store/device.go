@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 	"whatsgoingon/data"
+	"whatsgoingon/handler"
 )
 
 // GetDeviceIDBydeviceID retrieves the device ID by the device ID.
@@ -69,7 +70,7 @@ func InsertDeviceIfNotExists(device *data.Device) (*data.Device, error) {
 
 	if !exists {
 		// Insert the model into the table.
-		_, err :=db.NewInsert().Model(device).Returning("*").Exec(context.Background())
+		_, err := db.NewInsert().Model(device).Returning("*").Exec(context.Background())
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert device into table: %v", err)
 		}
@@ -90,9 +91,9 @@ func BulkUpdateDeviceHandlerOff() error {
 		Set("inactived_at = ?", time.Now()).
 		Where("active = true").
 		Exec(context.Background())
-	
+
 	if err != nil {
-		fmt.Errorf("Failed to update table: %v", err)
+		handler.FailOnError(err, "Failed to update table")
 		return err
 	}
 
@@ -111,7 +112,7 @@ func GetWebhookURLByDeviceID(deviceID int) (string, bool, error) {
 		Scan(context.Background())
 
 	if err != nil {
-		fmt.Errorf("Failed to get webhook URL for device ID: %v", err)
+		handler.FailOnError(err, "Failed to get webhook URL for device ID")
 		return "", false, err
 	}
 	return deviceWebhook.WebhookURL, deviceWebhook.Active, nil
@@ -130,7 +131,7 @@ func GetTop20WebhookMessagesByDeviceID(deviceID int) []data.WebhookMessage {
 		Scan(context.Background())
 
 	if err != nil {
-		fmt.Errorf("Failed to get top 20 webhook messages: %v", err)
+		handler.FailOnError(err, "Failed to get top 20 webhook messages")
 		return []data.WebhookMessage{}
 	}
 
@@ -146,12 +147,37 @@ func InactiveWebhookURLByDeviceID(deviceID int) error {
 		Set("active = false").
 		Where("id = ?", deviceID).
 		Exec(context.Background())
-	
+
 	if err != nil {
-		fmt.Errorf("Failed to inactivate webhook URL for device ID: %v", err)
+		handler.FailOnError(err, "Failed to inactivate webhook URL for device ID")
 		return err
 	}
 
 	fmt.Printf("Webhook URL for device ID %s inactivated successfully", deviceID)
 	return nil
+}
+
+func RemoveDevice(deviceID int) (error, bool) {
+	db := GetBunConnection()
+
+	device := new(data.Device)
+	err := db.NewSelect().
+		Model(device).
+		Where("id = ?", deviceID).
+		Scan(context.Background())
+
+	if err != nil {
+		return err, false
+	}
+
+	_, err = db.NewDelete().
+		Model(device).
+		Where("id = ?", deviceID).
+		Exec(context.Background())
+
+	if err != nil {
+		return err, false
+	}
+
+	return nil, true
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"whatsgoingon/data"
+	"whatsgoingon/handler"
 	"whatsgoingon/store"
 )
 
@@ -25,7 +26,7 @@ func insertWebhookResponseToTable(deviceID int, webhhookURL string, body string,
 		WebhookURL:   webhhookURL,
 	})
 	if err != nil {
-		FailOnError(err, "Error inserting webhook response into table")
+		handler.FailOnError(err, "Error inserting webhook response into table")
 	}
 	inactiveWebhookIfThereAreErrors(deviceID, webhhookURL)
 }
@@ -34,11 +35,11 @@ func insertWebhookResponseToTable(deviceID int, webhhookURL string, body string,
 func inactiveWebhookIfThereAreErrors(deviceID int, webhookURL string) {
 	if currentMinute := time.Now().Minute(); currentMinute%5 != 0 {
 		webhookMessages := store.GetTop20WebhookMessagesByDeviceID(deviceID)
-		
+
 		// Get all CodeResponse from webhookMessages and check if there are any errors.
 		if ok := AllMessagesNon200(webhookMessages); ok {
 			if err := store.InactiveWebhookURLByDeviceID(deviceID); err != nil {
-				FailOnError(err, "Error deactivating webhook URL")
+				handler.FailOnError(err, "Error deactivating webhook URL")
 				return
 			}
 			log.Printf("Webhook URL %s deactivated for device ID: %v", webhookURL, deviceID)
@@ -98,13 +99,13 @@ func AddWebhook(deviceID int, webhookURL string) (error, bool) {
 	if err != nil {
 		return fmt.Errorf("error getting device by ID: %v", err), false
 	}
-	
+
 	_, err = store.InsertIntoTable(&data.DeviceWebhook{
-		DeviceID:         device.ID,
-		Device: 		  &device,
-		WebhookURL: 	  webhookURL,
-		Active:     	  true,
-		Timestamp: 		  time.Now(),
+		DeviceID:   device.ID,
+		Device:     &device,
+		WebhookURL: webhookURL,
+		Active:     true,
+		Timestamp:  time.Now(),
 	})
 	if err != nil {
 		return fmt.Errorf("error inserting webhook into table: %v", err), false
