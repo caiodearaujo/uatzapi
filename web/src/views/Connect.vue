@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import axios from 'axios';
-import { API_BASE_URL, API_ENDPOINTS } from '@/api.config';
+import { API_BASE_URL, API_BASE_ENDPOINTS, API_KEY_TOKEN } from '@/api.config';
 const qrCode = ref('');
 
 onMounted(async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.CONNECT}`);
+    const response = await axios.get(`${API_BASE_URL}${API_BASE_ENDPOINTS.CONNECT}`, {
+      headers: {
+        'X-Api-Key': API_KEY_TOKEN
+      },
+    });
     qrCode.value = response.data.qrCode;
   } catch (error) {
     console.error(error);

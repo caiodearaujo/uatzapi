@@ -74,7 +74,7 @@
 
 <script>
 import axios from 'axios';
-import { API_BASE_URL } from '@/api.config';
+import { API_BASE_URL, API_KEY_TOKEN} from '@/api.config';
 
 export default {
   data() {
@@ -98,7 +98,11 @@ export default {
       const deviceId = parseInt(this.$route.params.id);
       this.loading = true; // Inicie o carregamento
       try {
-        const response = await axios.get(`${API_BASE_URL}/webhook/${deviceId}`);
+        const response = await axios.get(`${API_BASE_URL}/webhook/${deviceId}`, {
+          headers: {
+            'X-Api-Key': API_KEY_TOKEN,
+          },
+        });
         if (response.status === 200) {
           this.webhookUrl = response.data.webhook_url;
         }
@@ -117,6 +121,10 @@ export default {
         const response = await axios.post(`${API_BASE_URL}/webhook`, {
           device_id: deviceId,
           webhook_url: this.webhookUrl,
+        }, {
+          headers: {
+            'X-Api-Key': API_KEY_TOKEN,
+          },
         });
         if (response.status === 200) {
           this.snackbarVisible = true; // Exibe o snackbar
@@ -132,7 +140,11 @@ export default {
       const deviceId = parseInt(this.$route.params.id);
       this.loading = true; // Inicie o carregamento
       try {
-        const response = await axios.get(`${API_BASE_URL}/webhook/${deviceId}/all`);
+        const response = await axios.get(`${API_BASE_URL}/webhook/${deviceId}/all`, {
+          headers: {
+            'X-Api-Key': API_KEY_TOKEN,
+          },
+        });
         this.webhooks = response.data;
       } catch (error) {
         console.error('Erro ao listar webhooks:', error);
@@ -148,6 +160,9 @@ export default {
           data: {
             device_id: deviceId,
             webhook_url: this.webhookUrl,
+          },
+          headers: {
+            'X-Api-Key': API_KEY_TOKEN,
           },
         });
         this.fetchAllWebhooks();

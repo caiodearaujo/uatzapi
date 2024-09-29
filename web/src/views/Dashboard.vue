@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import axios from 'axios';
-import { API_BASE_URL, API_ENDPOINTS } from '@/api.config';
+import { API_BASE_URL, API_BASE_ENDPOINTS, API_KEY_TOKEN } from '@/api.config';
 import Device from '@/types/device';
 
 const devices = ref<Device[]>([]);
@@ -9,7 +9,11 @@ const loading = ref(true); // Adiciona uma variável para controlar o loading
 
 onMounted(async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.DEVICES}`);
+    const response = await axios.get(`${API_BASE_URL}${API_BASE_ENDPOINTS.DEVICES}`, {
+      headers: {
+        'X-Api-Key': API_KEY_TOKEN
+      },
+    });
     devices.value = response.data.map((deviceData: any) => new Device(deviceData));
   } catch (error) {
     console.error(error);
