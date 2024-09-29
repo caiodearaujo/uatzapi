@@ -17,6 +17,7 @@ func SendMessage(jid string, message string, recipient string) (*whatsmeow.SendR
 	if err != nil {
 		return nil, err
 	}
+	defer client.Disconnect()
 
 	destination, err := CheckIfNumberExistsAndGetJID(recipient, client)
 	if err != nil {
@@ -43,6 +44,7 @@ func SendSticker(jid string, stickerData []byte, recipient string) (*whatsmeow.S
 	if err != nil {
 		return nil, err
 	}
+	defer client.Disconnect()
 
 	destination, err := CheckIfNumberExistsAndGetJID(recipient, client)
 	if err != nil {

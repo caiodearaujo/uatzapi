@@ -88,7 +88,7 @@ func BulkUpdateDeviceHandlerOff() error {
 	_, err := db.NewUpdate().
 		Model((*data.DeviceHandler)(nil)).
 		Set("active = false").
-		Set("inactived_at = ?", time.Now()).
+		Set("inactive_at = ?", time.Now()).
 		Where("active = true").
 		Exec(context.Background())
 

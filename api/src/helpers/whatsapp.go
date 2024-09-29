@@ -42,6 +42,22 @@ type DeviceResponse struct {
 	Timestamp    time.Time `json:"timestamp"`
 }
 
+type ContactsResponse struct {
+	Name           string `json:"name"`
+	Number         string `json:"number"`
+	ProfilePicture string `json:"profile_picture"`
+}
+
+type DeviceInfoResponse struct {
+	DeviceID         int                `json:"device_id"`
+	ProfilePicture   string             `json:"profile_picture"`
+	Webhook          string             `json:"webhook"`
+	PhoneNumber      string             `json:"phone_number"`
+	PushName         string             `json:"push_name"`
+	BusinessName     string             `json:"business_name"`
+	ContactsResponse []ContactsResponse `json:"contacts"`
+}
+
 // ConnectToDatabase connects to the database.
 func connectToDatabase() (*sqlstore.Container, error) {
 	dbUser := os.Getenv("pg_username")
@@ -211,4 +227,78 @@ func GenerateQRCode(qrCode string) (string, error) {
 	}
 	qrCodeBase64 := base64.StdEncoding.EncodeToString(buf.Bytes())
 	return qrCodeBase64, nil
+}
+
+func GetClientInfo(deviceID int, client *whatsmeow.Client) DeviceInfoResponse {
+	clientJID := types.NewJID(client.Store.ID.User, types.DefaultUserServer)
+
+	// Pega a foto de perfil do cliente
+	picInfo, _ := client.GetProfilePictureInfo(clientJID, nil)
+	var picURL string
+	if picInfo != nil {
+		picURL = picInfo.URL
+	}
+
+	// Pega todos os contatos
+	contacts, _ := client.Store.Contacts.GetAllContacts()
+	var contactsResponse []ContactsResponse
+
+	// WaitGroup para gerenciar as goroutines
+	var wg sync.WaitGroup
+	var mu sync.Mutex // Para proteger o acesso à lista de respostas concorrente
+
+	// Função para processar um único contato
+	processContact := func(key types.JID, contact types.ContactInfo) {
+		defer wg.Done() // Marca como done quando terminar a goroutine
+
+		contactName := contact.PushName
+		var contactProfileURL string
+		picContact, _ := client.GetProfilePictureInfo(key, nil)
+		if picContact != nil {
+			contactProfileURL = picContact.URL
+		}
+
+		if contactName == "" {
+			contactName = contact.BusinessName
+		}
+
+		// Adiciona o contato à resposta de forma segura
+		mu.Lock()
+		contactsResponse = append(contactsResponse, ContactsResponse{
+			Name:           contactName,
+			Number:         key.User,
+			ProfilePicture: contactProfileURL,
+		})
+		mu.Unlock()
+	}
+
+	// Inicia uma goroutine para cada contato
+	for key, contact := range contacts {
+		wg.Add(1)
+		go processContact(key, contact)
+	}
+
+	// Espera todas as goroutines terminarem
+	wg.Wait()
+
+	// Busca o Webhook ativo
+	var webhookURL string
+	if webhook, err := GetWebhookActiveByDeviceID(deviceID); err != nil {
+		webhookURL = ""
+	} else {
+		webhookURL = webhook.WebhookURL
+	}
+
+	// Monta a resposta final
+	deviceInfo := DeviceInfoResponse{
+		DeviceID:         deviceID,
+		ProfilePicture:   picURL,
+		Webhook:          webhookURL,
+		PhoneNumber:      clientJID.User,
+		PushName:         client.Store.PushName,
+		BusinessName:     client.Store.BusinessName,
+		ContactsResponse: contactsResponse,
+	}
+
+	return deviceInfo
 }

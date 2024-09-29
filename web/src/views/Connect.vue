@@ -18,8 +18,17 @@ onMounted(async () => {
   <v-app>
     <v-main>
       <v-container>
-        <h1>Conectar com número de telefone</h1>
-        <v-divider />
+        <v-row>
+          <v-col>
+            <v-img
+              src="/connect.svg"
+              alt="Header Image"
+              height="200px"
+            ></v-img>
+            <h1 class="text-center mt-4">Conectar novo dispositivo</h1>
+          </v-col>
+        </v-row>
+        <v-divider/>
         <v-row dense>
           <v-col cols="12" md="6">
             <v-list lines="one">

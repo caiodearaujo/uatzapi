@@ -26,17 +26,26 @@
             <v-btn color="blue" text v-bind="attrs" @click="snackbarVisible = false">Fechar</v-btn>
           </template>
         </v-snackbar>
-        <br/>
+
+        <br />
         <v-divider></v-divider>
-        <br/>
+        <br />
+
+        <!-- Loader -->
+        <v-row v-if="loading" class="justify-center">
+          <v-progress-circular indeterminate color="primary"></v-progress-circular>
+        </v-row>
+
         <v-data-table
+          v-else
           :headers="headers"
           :items="webhooks"
           class="elevation-1"
           :pagination="{ rowsPerPage: -1 }" 
+          :no-data-text="webhooks.length === 0 ? 'Nenhum webhook cadastrado' : 'Carregando...'"
           hide-default-footer
         >
-        <template v-slot:top>
+          <template v-slot:top>
             <v-toolbar>
               <v-toolbar-title>Lista de Webhooks</v-toolbar-title>
             </v-toolbar>
@@ -73,6 +82,7 @@ export default {
       webhookUrl: '',
       webhooks: [],
       snackbarVisible: false,
+      loading: false,  // Adicione este estado
       headers: [
         { title: 'Webhook URL', key: 'webhook_url' },
         { title: 'Data de Criação', key: 'timestamp' },
@@ -86,7 +96,7 @@ export default {
   methods: {
     async fetchWebhook() {
       const deviceId = parseInt(this.$route.params.id);
-
+      this.loading = true; // Inicie o carregamento
       try {
         const response = await axios.get(`${API_BASE_URL}/webhook/${deviceId}`);
         if (response.status === 200) {
@@ -96,11 +106,13 @@ export default {
         if (error.response.status !== 204) {
           console.error('Erro ao buscar webhook:', error);
         }
+      } finally {
+        this.loading = false; // Encerre o carregamento
       }
     },
     async submitWebhook() {
       const deviceId = parseInt(this.$route.params.id);
-
+      this.loading = true; // Inicie o carregamento
       try {
         const response = await axios.post(`${API_BASE_URL}/webhook`, {
           device_id: deviceId,
@@ -112,29 +124,37 @@ export default {
         }
       } catch (error) {
         console.error('Erro ao salvar webhook:', error);
+      } finally {
+        this.loading = false; // Encerre o carregamento
       }
     },
     async fetchAllWebhooks() {
       const deviceId = parseInt(this.$route.params.id);
+      this.loading = true; // Inicie o carregamento
       try {
         const response = await axios.get(`${API_BASE_URL}/webhook/${deviceId}/all`);
         this.webhooks = response.data;
       } catch (error) {
         console.error('Erro ao listar webhooks:', error);
+      } finally {
+        this.loading = false; // Encerre o carregamento
       }
     },
     async deactivateWebhook(webhookId) {
       const deviceId = this.$route.params.id;
+      this.loading = true; // Inicie o carregamento
       try {
         await axios.delete(`${API_BASE_URL}/webhook/${webhookId}`, {
           data: {
             device_id: deviceId,
-            webhook_url: this.webhookUrl, // Use o URL do webhook específico se necessário
+            webhook_url: this.webhookUrl,
           },
         });
         this.fetchAllWebhooks();
       } catch (error) {
         console.error('Erro ao desativar webhook:', error);
+      } finally {
+        this.loading = false; // Encerre o carregamento
       }
     },
   },
