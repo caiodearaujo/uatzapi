@@ -111,6 +111,7 @@
 
 <script>
 import axios from 'axios';
+import { API_BASE_URL, API_BASE_ENDPOINTS, API_KEY_TOKEN } from '@/api.config';
 
 export default {
   data() {
@@ -141,7 +142,11 @@ export default {
     fetchDeviceData() {
       const deviceId = parseInt(this.$route.params.id);
       axios
-        .get(`http://localhost:8080/device/${deviceId}`)
+        .get(`${API_BASE_URL}${API_BASE_ENDPOINTS.DEVICES}/${deviceId}`, {
+          headers: {
+            'X-Api-Key': API_KEY_TOKEN,
+          },
+        })
         .then((response) => {
           this.device = response.data;
           this.loading = false; // Desativa o loader quando os dados são carregados

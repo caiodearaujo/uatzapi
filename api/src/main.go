@@ -7,7 +7,6 @@ import (
 	"whatsgoingon/routes"
 	myStore "whatsgoingon/store"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -29,7 +28,7 @@ func main() {
 	myStore.CreateTablesFromDataPkg()
 	go events.InitListener()
 
-	r.Use(cors.Default())
+	r.Use(conf.CORSmiddleware())
 	r.Use(conf.TokenMiddleware())
 
 	// Device Routes
