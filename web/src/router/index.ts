@@ -8,22 +8,18 @@
 import Connect from '@/views/Connect.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import Device from '@/views/Device.vue'
-import DeviceAI from '@/views/DeviceAI.vue'
-import DeviceHistoric from '@/views/DeviceHistoric.vue'
-import DeviceNerd from '@/views/DeviceNerd.vue'
-import DeviceSettings from '@/views/DeviceSettings.vue'
-import DeviceStats from '@/views/DeviceStats.vue'
-import DeviceStatus from '@/views/DeviceStatus.vue'
+import DeviceWebhook from '@/views/DeviceWebhook.vue'
 import Login from '@/views/Login.vue'
 import Settings from '@/views/Settings.vue'
 import { createRouter, createWebHistory } from 'vue-router/auto'
 
 const extraMenuItems = [
-  { title: 'Status', icon: 'mdi-information-slab-circle', to: { name: 'DeviceStatus' } },
-  { title: 'A.I.', icon: 'mdi-robot-happy', to: { name: 'DeviceAI' } },
-  { title: 'Histórico', icon: 'mdi-history', to: { name: 'DeviceHistoric' } },
-  { title: 'Estatística', icon: 'mdi-chart-box-outline', to: { name: 'DeviceNerd' } }, // Corrected name
-  { title: 'Configurações', icon: 'mdi-list-status', to: { name: 'DeviceSettings' } },
+  { title: 'Device', icon: 'mdi-cellphone', to: { name: 'Device' } },
+  { title: 'Webhook', icon: 'mdi-webhook', to: { name: 'DeviceWebhook' } },
+  // { title: 'A.I.', icon: 'mdi-robot-happy', to: { name: 'DeviceAI' } },
+  // { title: 'Histórico', icon: 'mdi-history', to: { name: 'DeviceHistoric' } },
+  // { title: 'Estatística', icon: 'mdi-chart-box-outline', to: { name: 'DeviceNerd' } }, // Corrected name
+  // { title: 'Configurações', icon: 'mdi-list-status', to: { name: 'DeviceSettings' } },
 ];
 
 const routes = [
@@ -63,45 +59,18 @@ const routes = [
     },
   },
   {
-    path: "/device/:id/status",
-    name: "DeviceStatus",
-    component: DeviceStatus,
+    path: "/device/:id",
+    name: "Device",
+    component: Device,
     meta: {
       requiresAuth: true,
       extraMenuItems: extraMenuItems,
     },
   },
   {
-    path: "/device/:id/artificial-inteligence",
-    name: "DeviceAI",
-    component: DeviceAI,
-    meta: {
-      requiresAuth: true,
-      extraMenuItems: extraMenuItems,
-    },
-  },
-  {
-    path: "/device/:id/historic",
-    name: "DeviceHistoric",
-    component: DeviceHistoric,
-    meta: {
-      requiresAuth: true,
-      extraMenuItems: extraMenuItems,
-    },
-  },
-  {
-    path: "/device/:id/nerd",
-    name: "DeviceNerd",
-    component: DeviceStats,
-    meta: {
-      requiresAuth: true,
-      extraMenuItems: extraMenuItems,
-    },
-  },
-  {
-    path: "/device/:id/settings",
-    name: "DeviceSettings",
-    component: DeviceSettings,
+    path: "/device/:id/webhook",
+    name: "DeviceWebhook",
+    component: DeviceWebhook,
     meta: {
       requiresAuth: true,
       extraMenuItems: extraMenuItems,

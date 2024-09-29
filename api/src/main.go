@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"whatsgoingon/conf"
 	"whatsgoingon/events"
 	"whatsgoingon/routes"
 	myStore "whatsgoingon/store"
@@ -15,6 +16,7 @@ import (
 )
 
 func main() {
+	conf.InitToken()
 	r := gin.Default()
 	store.DeviceProps.Os = proto.String("UatzAPI")
 
@@ -28,10 +30,12 @@ func main() {
 	go events.InitListener()
 
 	r.Use(cors.Default())
+	r.Use(conf.TokenMiddleware())
 
 	// Device Routes
 	r.GET("/connect", routes.DeviceNew)
 	r.GET("/device", routes.DeviceList)
+	r.GET("/device/:deviceId", routes.GetDeviceInfo)
 
 	// Listener Routes
 	r.GET("/start_listener", routes.StartListener)
@@ -44,6 +48,8 @@ func main() {
 	r.GET("/webhook", routes.WebhookList)
 	r.POST("/webhook", routes.WebhookAdd)
 	r.DELETE("/webhook/:deviceID", routes.WebhookRemove)
+	r.GET("/webhook/:deviceID", routes.WebhookByDevice)
+	r.GET("/webhook/:deviceID/all", routes.WebhookListByDevice)
 
 	r.Run(":8080")
 }

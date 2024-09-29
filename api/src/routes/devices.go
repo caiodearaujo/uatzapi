@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"whatsgoingon/events"
 	"whatsgoingon/helpers"
 
@@ -44,4 +45,19 @@ func DeviceNew(c *gin.Context) {
 		}
 	}
 
+}
+
+func GetDeviceInfo(c *gin.Context) {
+	deviceID := c.Param("deviceId")
+	deviceIDInt, _ := strconv.Atoi(deviceID)
+	client, err := helpers.GetWhatsappClientByDeviceID(deviceIDInt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer client.Disconnect()
+
+	picInfo := helpers.GetClientInfo(deviceIDInt, client)
+
+	c.JSON(http.StatusOK, picInfo)
 }
