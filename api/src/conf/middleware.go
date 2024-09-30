@@ -2,11 +2,12 @@ package conf
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"sync"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 var (

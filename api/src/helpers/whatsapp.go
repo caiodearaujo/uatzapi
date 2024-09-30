@@ -60,14 +60,15 @@ type DeviceInfoResponse struct {
 
 // ConnectToDatabase connects to the database.
 func connectToDatabase() (*sqlstore.Container, error) {
-	dbUser := os.Getenv("pg_username")
-	dbPwd := os.Getenv("pg_password")
-	dbTCPHost := os.Getenv("pg_hostname")
-	dbPort := os.Getenv("pg_port")
-	dbName := os.Getenv("pg_database")
+	dbUser := os.Getenv("PG_USERNAME")
+	dbPwd := os.Getenv("PG_PASSWORD")
+	dbTCPHost := os.Getenv("PG_HOSTNAME")
+	dbPort := os.Getenv("PG_PORT")
+	dbName := os.Getenv("PG_DATABASE")
+	dbSchema := os.Getenv("PG_WM_SCHEMA")
 
-	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s sslmode=disable",
-		dbTCPHost, dbUser, dbPwd, dbPort, dbName)
+	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s search_path=%s sslmode=disable",
+		dbTCPHost, dbUser, dbPwd, dbPort, dbName, dbSchema)
 
 	container, err := sqlstore.New("pgx", dbURI, dbLog)
 	if err != nil {

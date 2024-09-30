@@ -21,23 +21,16 @@ var (
 	bunInstance *bun.DB
 )
 
-// Get environment variable with a fallback value.
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
-
 // Initialize PostgreSQL connection using environment variables.
 func getPostgresConnection() (*sql.DB, error) {
-	dbUser := getEnv("pg_username", "postgres")
-	dbPwd := getEnv("pg_password", "postgres")
-	dbTCPHost := getEnv("pg_hostname", "localhost")
-	dbPort := getEnv("pg_port", "5432")
-	dbName := getEnv("pg_dbname", "uatzapi")
+	dbUser := os.Getenv("PG_USERNAME")
+	dbPwd := os.Getenv("PG_PASSWORD")
+	dbTCPHost := os.Getenv("PG_HOSTNAME")
+	dbPort := os.Getenv("PG_PORT")
+	dbName := os.Getenv("PG_DATABASE")
+	dbSchema := os.Getenv("PG_UA_SCHEMA")
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPwd, dbTCPHost, dbPort, dbName)
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?search_path=%s&sslmode=disable", dbUser, dbPwd, dbTCPHost, dbPort, dbName, dbSchema)
 
 	db := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 

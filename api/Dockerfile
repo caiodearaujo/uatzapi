@@ -1,20 +1,35 @@
-# Imagem base com Go
-FROM golang:1.21-alpine
+# Etapa de build
+FROM golang:1.23.1-alpine AS builder
 
-# Diretório de trabalho dentro do container
+# Instala as dependências necessárias, incluindo o WebP
+RUN apk update && apk add --no-cache libwebp-dev gcc g++ make
+
+# Defina o diretório de trabalho
 WORKDIR /app
 
-# Copia o código-fonte para o container
-COPY . .
+# Copie os arquivos de dependências go.mod e go.sum
+COPY ./src/go.mod ./src/go.sum ./
 
-# Instala as dependências do projeto
+# Baixe as dependências
 RUN go mod download
 
-# Compila o código Go
-RUN go build -o main .
+# Copie o código fonte
+COPY ./src .
 
-# Expõe a porta que a API irá utilizar
+# Compile o binário, nomeando-o como "api"
+RUN go build -o api .
+
+# Etapa de produção
+FROM alpine:3.18
+
+# Defina o diretório de trabalho
+WORKDIR /app
+
+# Copie apenas o binário gerado do estágio anterior
+COPY --from=builder /app/api /app/api
+
+# Expõe a porta 8080 para acesso ao serviço
 EXPOSE 8080
 
-# Comando para iniciar a API
-CMD ["./main"]
+# Comando padrão para executar o binário
+CMD ["/app/api"]
