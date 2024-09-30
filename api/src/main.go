@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"whatsgoingon/conf"
 	"whatsgoingon/events"
 	"whatsgoingon/routes"
@@ -16,13 +15,14 @@ import (
 
 func main() {
 	conf.InitToken()
-	r := gin.Default()
 	store.DeviceProps.Os = proto.String("UatzAPI")
 
 	err := godotenv.Load(".env")
 	if err != nil {
-		panic(errors.New("cannot open .env file"))
+		gin.SetMode(gin.ReleaseMode)
 	}
+
+	r := gin.Default()
 
 	// Channel for init a listener in a goroutine
 	myStore.CreateTablesFromDataPkg()

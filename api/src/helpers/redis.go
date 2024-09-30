@@ -32,9 +32,9 @@ func getEnv(key, fallback string) string {
 
 // Initialize a Redis client once using the sync.Once pattern to ensure a singleton instance.
 func getRedisClient() *redis.Client {
-	redisHostname := getEnv("redis_hostname", "localhost")
-	redisPort := getEnv("redis_port", "6379")
-	redisPassword := getEnv("redis_password", "admin")
+	redisHostname := os.Getenv("REDIS_HOSTNAME")
+	redisPort := os.Getenv("REDIS_PORT")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
 
 	redisOnce.Do(func() {
 		log.Info().Msg("Creating a new Redis client on dsn: " + redisHostname + ":" + redisPort)
