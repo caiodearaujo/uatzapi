@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, ref, computed, watch } from 'vue';
+import { defineComponent, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 export default defineComponent({
@@ -17,8 +17,10 @@ export default defineComponent({
 
     // Watch the route to update the selected item
     watch(route, (newRoute) => {
-      extraItems.value = newRoute.meta.extraMenuItems || [];
-      extraMenuName.value = newRoute.name || '';
+      extraItems.value = Array.isArray(newRoute.meta.extraMenuItems) 
+        ? newRoute.meta.extraMenuItems 
+        : [];
+      extraMenuName.value = typeof newRoute.name === 'string' ? newRoute.name : '';
     });
 
     return { items, extraItems, extraMenuName, route };
