@@ -34,7 +34,7 @@ func main() {
 	go events.InitListener()
 
 	// Add CORS and Token middlewares for handling requests.
-	r.Use(conf.CORSmiddleware())
+	r.Use(conf.CORSMiddleware())
 	r.Use(conf.TokenMiddleware())
 
 	// Device Routes
