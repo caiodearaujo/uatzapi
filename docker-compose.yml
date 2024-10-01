@@ -1,12 +1,35 @@
 services:
+  web:
+    build: ./web
+    environment:
+      - APP_ENVINRONMENT=production
+      - APP_API_KEY_TOKEN=019242d8-d976-78ee-9744-18f7dc0c559b
+    ports:
+      - "3003:80"
+    depends_on:
+      - api
+
   api:
     build: ./api
     ports:
       - "8080:8080"
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
+    environment:
+      - API_KEY_TOKEN=019242d8-d976-78ee-9744-18f7dc0c559b
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=postgres
+      - PG_HOSTNAME=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=uatzapi
+      - PG_UA_SCHEMA=uatzapi
+      - PG_WM_SCHEMA=whatsmeow
+      - REDIS_HOSTNAME=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=admin
+    depends_on:
+      - redis
+      - postgres
+      - flyway
+
   redis:
     image: redis:latest
     container_name: redis
@@ -16,3 +39,25 @@ services:
       - ./redis/data:/data
     command: redis-server --requirepass "admin"
     restart: always
+
+  postgres:
+    image: "postgres:15-alpine"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=uatzapi
+    ports:
+      - "5432:5432"
+
+  flyway:
+    build:
+      context: ./db
+    environment:
+      - FLYWAY_URL=jdbc:postgresql://postgres:5432/uatzapi
+      - FLYWAY_USER=postgres
+      - FLYWAY_PASSWORD=postgres
+    volumes:
+      - ./db/migrations:/flyway/sql
+    depends_on:
+      - postgres
+    command: -connectRetries=60 migrate

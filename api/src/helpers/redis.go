@@ -35,9 +35,9 @@ func getEnv(key, fallback string) string {
 // getRedisClient initializes and returns a Redis client using the singleton pattern.
 // The client is only created once during the application's lifetime.
 func getRedisClient() *redis.Client {
-	redisHostname := getEnv("redis_hostname", "localhost")
-	redisPort := getEnv("redis_port", "6379")
-	redisPassword := getEnv("redis_password", "admin")
+	redisHostname := os.Getenv("REDIS_HOSTNAME")
+	redisPort := os.Getenv("REDIS_PORT")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
 
 	// Ensure the Redis client is only initialized once.
 	redisOnce.Do(func() {
