@@ -3,13 +3,11 @@ package store
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 	"whatsgoingon/data"
-	"whatsgoingon/handler"
 )
 
-// GetDeviceIDBydeviceID retrieves the device ID by the device ID.
+// GetJIDByDeviceID retrieves the JID (WhatsApp ID) for a given device ID.
 func GetJIDByDeviceID(deviceID int) (string, error) {
 	db := GetBunConnection()
 
@@ -20,12 +18,13 @@ func GetJIDByDeviceID(deviceID int) (string, error) {
 		Scan(context.Background())
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to retrieve JID for device ID %d: %v", deviceID, err)
 	}
 	return device.JID, nil
 }
 
-func GetDeviceById(deviceID int) (data.Device, error) {
+// GetDeviceByID retrieves the device details by its ID.
+func GetDeviceByID(deviceID int) (data.Device, error) {
 	db := GetBunConnection()
 
 	device := new(data.Device)
@@ -35,11 +34,12 @@ func GetDeviceById(deviceID int) (data.Device, error) {
 		Scan(context.Background())
 
 	if err != nil {
-		return data.Device{}, err
+		return data.Device{}, fmt.Errorf("failed to retrieve device by ID %d: %v", deviceID, err)
 	}
 	return *device, nil
 }
 
+// GetDeviceByJID retrieves the device details by its WhatsApp ID (JID).
 func GetDeviceByJID(jid string) (data.Device, error) {
 	db := GetBunConnection()
 
@@ -50,41 +50,41 @@ func GetDeviceByJID(jid string) (data.Device, error) {
 		Scan(context.Background())
 
 	if err != nil {
-		return data.Device{}, err
+		return data.Device{}, fmt.Errorf("failed to retrieve device by JID %s: %v", jid, err)
 	}
 	return *device, nil
 }
 
-// InsertIntoTableIfNotExists inserts a given model into the database if it does not exist.
+// InsertDeviceIfNotExists inserts a new device into the database if it doesn't already exist.
 func InsertDeviceIfNotExists(device *data.Device) (*data.Device, error) {
 	db := GetBunConnection()
 
-	// Verify is exists a device with the same ID.
+	// Check if the device already exists by JID
 	exists, err := db.NewSelect().
 		Model(device).
 		Where("whatsapp_id = ?", device.JID).
 		Exists(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify if device exists: %v", err)
+		return nil, fmt.Errorf("failed to check if device exists: %v", err)
 	}
 
 	if !exists {
-		// Insert the model into the table.
+		// Insert the new device into the table
 		_, err := db.NewInsert().Model(device).Returning("*").Exec(context.Background())
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert device into table: %v", err)
 		}
-		fmt.Printf("Device inserted successfully " + strconv.FormatInt(int64(device.ID), 10))
+		fmt.Printf("Device inserted successfully with ID: %d\n", device.ID)
 		return device, nil
 	}
-	return nil, fmt.Errorf("device already exists")
+	return nil, fmt.Errorf("device with JID %s already exists", device.JID)
 }
 
-// BulkUpdateDeviceHandlerOff deactivates all active device handlers.
+// BulkUpdateDeviceHandlerOff deactivates all active device handlers in the database.
 func BulkUpdateDeviceHandlerOff() error {
 	db := GetBunConnection()
 
-	// Update all active device handlers do inactive.
+	// Set all active handlers to inactive
 	_, err := db.NewUpdate().
 		Model((*data.DeviceHandler)(nil)).
 		Set("active = false").
@@ -93,74 +93,73 @@ func BulkUpdateDeviceHandlerOff() error {
 		Exec(context.Background())
 
 	if err != nil {
-		handler.FailOnError(err, "Failed to update table")
-		return err
+		return fmt.Errorf("failed to deactivate device handlers: %v", err)
 	}
 
-	fmt.Printf("Device handlers bulk updated (inactive) successfully")
+	fmt.Println("All active device handlers have been deactivated.")
 	return nil
 }
 
-// GetTop20WebhookMessages retrieves the top 20 webhook messages.
-func GetTop20WebhookMessagesByDeviceID(deviceID int) []data.WebhookMessage {
+// GetTop20WebhookMessagesByDeviceID retrieves the last 20 webhook messages for a given device.
+func GetTop20WebhookMessagesByDeviceID(deviceID int) ([]data.WebhookMessage, error) {
 	db := GetBunConnection()
 
 	var webhookMessages []data.WebhookMessage
 	err := db.NewSelect().
 		Model(&webhookMessages).
-		Where("id = ?", deviceID).
+		Where("device_id = ?", deviceID).
 		Order("timestamp DESC").
 		Limit(20).
 		Scan(context.Background())
 
 	if err != nil {
-		handler.FailOnError(err, "Failed to get top 20 webhook messages")
-		return []data.WebhookMessage{}
+		return nil, fmt.Errorf("failed to retrieve top 20 webhook messages for device ID %d: %v", deviceID, err)
 	}
 
-	return webhookMessages
+	return webhookMessages, nil
 }
 
-// InactiveWebhookURLFordeviceID deactivates the webhook URL for the given device ID.
+// InactiveWebhookURLByDeviceID deactivates the webhook URL for a specific device ID.
 func InactiveWebhookURLByDeviceID(deviceID int) error {
 	db := GetBunConnection()
 
 	_, err := db.NewUpdate().
 		Model((*data.DeviceWebhook)(nil)).
 		Set("active = false").
-		Where("id = ?", deviceID).
+		Where("device_id = ?", deviceID).
 		Exec(context.Background())
 
 	if err != nil {
-		handler.FailOnError(err, "Failed to inactivate webhook URL for device ID")
-		return err
+		return fmt.Errorf("failed to deactivate webhook URL for device ID %d: %v", deviceID, err)
 	}
 
-	fmt.Printf("Webhook URL for device ID %s inactivated successfully", deviceID)
+	fmt.Printf("Webhook URL for device ID %d has been deactivated.\n", deviceID)
 	return nil
 }
 
-func RemoveDevice(deviceID int) (error, bool) {
+// RemoveDevice removes a device from the database by its ID.
+func RemoveDevice(deviceID int) error {
 	db := GetBunConnection()
 
+	// Fetch the device by ID to ensure it exists
 	device := new(data.Device)
 	err := db.NewSelect().
 		Model(device).
 		Where("id = ?", deviceID).
 		Scan(context.Background())
-
 	if err != nil {
-		return err, false
+		return fmt.Errorf("failed to find device with ID %d: %v", deviceID, err)
 	}
 
+	// Delete the device from the database
 	_, err = db.NewDelete().
 		Model(device).
 		Where("id = ?", deviceID).
 		Exec(context.Background())
-
 	if err != nil {
-		return err, false
+		return fmt.Errorf("failed to delete device with ID %d: %v", deviceID, err)
 	}
 
-	return nil, true
+	fmt.Printf("Device with ID %d has been successfully removed.\n", deviceID)
+	return nil
 }
