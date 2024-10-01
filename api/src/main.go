@@ -2,16 +2,14 @@ package main
 
 import (
 	"errors"
-	"whatsgoingon/conf"
-	"whatsgoingon/events"
-	"whatsgoingon/routes"
-	myStore "whatsgoingon/store"
-
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"go.mau.fi/whatsmeow/store"
 	"google.golang.org/protobuf/proto"
+	"whatsgoingon/conf"
+	"whatsgoingon/events"
+	"whatsgoingon/routes"
 )
 
 func main() {
@@ -25,7 +23,6 @@ func main() {
 	}
 
 	// Channel for init a listener in a goroutine
-	myStore.CreateTablesFromDataPkg()
 	go events.InitListener()
 
 	r.Use(conf.CORSmiddleware())

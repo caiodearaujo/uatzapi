@@ -24,7 +24,6 @@ func SaveMessage(msg events.Message, client *whatsmeow.Client) (error, *data.Sto
 	}
 
 	// Save the message to the database
-	
 
-	return nil, &content
+	return nil, content
 }

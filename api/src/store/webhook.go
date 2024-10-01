@@ -45,7 +45,7 @@ func InactivateWebhookByDeviceID(deviceID int) (error, bool) {
 // CreateNewWebhook creates a new webhook for the given device ID.
 // It inactivates any existing webhooks for the device before inserting a new one.
 func CreateNewWebhook(deviceID int, webhookURL string) (error, bool) {
-	device, err := GetDeviceById(deviceID)
+	device, err := GetDeviceByID(deviceID)
 	if err != nil {
 		return fmt.Errorf("error retrieving device by ID %d: %v", deviceID, err), false
 	}
