@@ -8,14 +8,11 @@ import (
 	"whatsgoingon/handler"
 )
 
-const (
-	NO_ROWS_IN_RESULT_SET = "sql: no rows in result set"
-)
-
+// GetWebhookURLs retrieves all active webhook URLs from the database.
 func GetWebhookURLs() ([]data.DeviceWebhook, error) {
 	db := GetBunConnection()
 
-	webhooks := []data.DeviceWebhook{}
+	var webhooks []data.DeviceWebhook
 	err := db.NewSelect().
 		Model(&webhooks).
 		Where("active = ?", true).
@@ -28,52 +25,58 @@ func GetWebhookURLs() ([]data.DeviceWebhook, error) {
 	return webhooks, nil
 }
 
-func InactivateWebhookByDeviceID(deviceId int) (error, bool) {
+// InactivateWebhookByDeviceID sets the 'active' field of a webhook to false based on the device ID.
+// It returns an error if the operation fails, along with a boolean indicating success.
+func InactivateWebhookByDeviceID(deviceID int) (error, bool) {
 	db := GetBunConnection()
 
 	_, err := db.NewUpdate().
 		Model(&data.DeviceWebhook{}).
 		Set("active = ?", false).
-		Where("device_id = ?", deviceId).
+		Where("device_id = ?", deviceID).
 		Exec(context.Background())
+
 	if err != nil {
-		return fmt.Errorf("error inactivating webhook by device ID: %v", err), false
+		return fmt.Errorf("error inactivating webhook for device ID %d: %v", deviceID, err), false
 	}
 	return nil, true
 }
 
-func CreateNewWebhook(deviceId int, webhookURL string) (error, bool) {
-	device, err := GetDeviceById(deviceId)
+// CreateNewWebhook creates a new webhook for the given device ID.
+// It inactivates any existing webhooks for the device before inserting a new one.
+func CreateNewWebhook(deviceID int, webhookURL string) (error, bool) {
+	device, err := GetDeviceById(deviceID)
 	if err != nil {
-		return fmt.Errorf("error getting device by ID: %v", err), false
+		return fmt.Errorf("error retrieving device by ID %d: %v", deviceID, err), false
 	}
 
-	err, _ = InactivateWebhookByDeviceID(deviceId)
+	err, _ = InactivateWebhookByDeviceID(deviceID)
 	if err != nil {
-		return fmt.Errorf("error inactivating webhook by device ID: %v", err), false
+		return fmt.Errorf("error inactivating webhook for device ID %d: %v", deviceID, err), false
 	}
 
 	_, err = InsertIntoTable(&data.DeviceWebhook{
-		DeviceID:   deviceId,
+		DeviceID:   deviceID,
 		Device:     &device,
 		WebhookURL: webhookURL,
 		Active:     true,
 		Timestamp:  time.Now(),
 	})
 	if err != nil {
-		return fmt.Errorf("error inserting webhook into table: %v", err), false
+		return fmt.Errorf("error inserting webhook for device ID %d: %v", deviceID, err), false
 	}
 
 	return nil, true
 }
 
-func GetWebhookActiveByDeviceID(deviceId int) (data.DeviceWebhook, error) {
+// GetWebhookActiveByDeviceID retrieves the active webhook for the given device ID.
+func GetWebhookActiveByDeviceID(deviceID int) (data.DeviceWebhook, error) {
 	db := GetBunConnection()
 
-	webhook := data.DeviceWebhook{}
+	var webhook data.DeviceWebhook
 	err := db.NewSelect().
 		Model(&webhook).
-		Where("device_id = ? AND active = ?", deviceId, true).
+		Where("device_id = ? AND active = ?", deviceID, true).
 		Scan(context.Background())
 
 	if err != nil {
@@ -82,13 +85,14 @@ func GetWebhookActiveByDeviceID(deviceId int) (data.DeviceWebhook, error) {
 	return webhook, nil
 }
 
-func GetWebhooksByDeviceID(deviceId int) ([]data.DeviceWebhook, error) {
+// GetWebhooksByDeviceID retrieves all webhooks associated with a given device ID.
+func GetWebhooksByDeviceID(deviceID int) ([]data.DeviceWebhook, error) {
 	db := GetBunConnection()
 
-	webhooks := []data.DeviceWebhook{}
+	var webhooks []data.DeviceWebhook
 	err := db.NewSelect().
 		Model(&webhooks).
-		Where("device_id = ?", deviceId).
+		Where("device_id = ?", deviceID).
 		Scan(context.Background())
 
 	if err != nil {
@@ -97,13 +101,14 @@ func GetWebhooksByDeviceID(deviceId int) ([]data.DeviceWebhook, error) {
 	return webhooks, nil
 }
 
-// GetWebhookURLFordeviceID retrieves the webhook URL for the given device ID.
+// GetWebhookURLByDeviceID retrieves the webhook URL for the given device ID if it is active.
+// Returns the URL, the active status, and an error if applicable.
 func GetWebhookURLByDeviceID(deviceID int) (string, bool, error) {
 	db := GetBunConnection()
 
-	deviceWebhook := new(data.DeviceWebhook)
+	var deviceWebhook data.DeviceWebhook
 	err := db.NewSelect().
-		Model(deviceWebhook).
+		Model(&deviceWebhook).
 		Where("id = ? AND active = ?", deviceID, true).
 		Scan(context.Background())
 
