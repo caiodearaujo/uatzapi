@@ -3,12 +3,13 @@
 This project provides a backend service for handling WhatsApp devices, webhooks, and messages using the [WhatsMeow](https://pkg.go.dev/go.mau.fi/whatsmeow) library. It integrates with PostgreSQL using the [Bun ORM](https://bun.uptrace.dev/) for managing devices, webhooks, and message logs, and uses the [Gin framework](https://gin-gonic.com/) for the API layer.
 
 ## Table of Contents
+
 - [Overview](#overview)
-- [Features](#features)
-- [Technologies](#technologies)
 - [Project Structure](#project-structure)
+- [Technologies](#technologies)
 - [Development Environment Setup](#development-environment-setup)
 - [Environment Variables (`.env`)](#environment-variables-env)
+- [Database Setup with Flyway](#database-setup-with-flyway)
 - [API Routes](#api-routes)
 - [Models and Database](#models-and-database)
 - [Error Handling](#error-handling)
@@ -16,51 +17,38 @@ This project provides a backend service for handling WhatsApp devices, webhooks,
 
 ## Overview
 
-The system is responsible for managing WhatsApp devices, sending messages and stickers, receiving webhook responses, and logging interactions. It uses PostgreSQL as the database for storing information about devices, handlers, and webhooks.
-
-## Features
-
-- Manage WhatsApp devices (connect, list, get details)
-- Send text messages and stickers
-- Handle webhooks and log responses
-- PostgresSQL database with Bun ORM
-- REST API using Gin framework
-- CORS and API token authentication middleware
-
-## Technologies
-
-- **Go version**: `1.23.1`
-- **ORM**: [Bun](https://bun.uptrace.dev/) with PostgreSQL
-- **WhatsApp API**: [WhatsMeow](https://pkg.go.dev/go.mau.fi/whatsmeow)
-- **Web Framework**: [Gin](https://gin-gonic.com/)
-- **Database**: PostgresSQL
-- **Environment Variables**: Managed using a `.env` file (loaded via [godotenv](https://github.com/joho/godotenv))
+The UatzAPI system is responsible for managing WhatsApp devices, sending messages and stickers, handling webhooks, and logging interactions with external webhook services. The backend is built using Go with the Gin framework for API management and integrates with PostgreSQL via the Bun ORM. The database schema is managed using Flyway, with migrations handled through Docker Compose.
 
 ## Project Structure
 
 ```bash
 .
-├── conf             # Configuration files (middleware, token, CORS)
-├── data             # Models and database logic
-├── events           # Event handlers for WhatsApp messages
-├── helpers          # Helper functions for message and sticker processing
-├── routes           # API routes for sending messages, webhooks, and managing devices
-├── store            # Database connection and management logic
-├── .env             # Environment variables for project configuration
-└── main.go          # Main application entry point
+├── api               # Backend API in Go
+├── db                # Flyway migrations for PostgreSQL
+├── web               # Frontend interface built with Vue.js
+├── docker-compose.yml # Docker Compose for orchestrating services
+└── README.md         # Project documentation
 ```
+
+## Technologies
+
+- **Go version**: `1.23.1` (backend API)
+- **ORM**: [Bun](https://bun.uptrace.dev/) (PostgreSQL ORM)
+- **WhatsApp API**: [WhatsMeow](https://pkg.go.dev/go.mau.fi/whatsmeow)
+- **Web Framework**: [Gin](https://gin-gonic.com/) (API routing)
+- **Database**: PostgreSQL with Flyway for database migrations
+- **Containerization**: Docker & Docker Compose for service orchestration
 
 ## Development Environment Setup
 
 ### Prerequisites
 
-- **Go 1.23.1**: Make sure you have Go version 1.23.1 installed.
-- **PostgresSQL**: Set up a PostgresSQL instance for the database.
-- **WhatsMeow**: Ensure you have the proper WhatsApp setup for connecting devices and sending messages.
+- **Go 1.23.1**: Ensure Go is installed.
+- **Docker & Docker Compose**: Ensure Docker and Docker Compose are installed for running Redis, PostgreSQL and Flyway migrations.
 
-### Installing Dependencies
+### Installing Backend Dependencies
 
-Clone the repository and install dependencies:
+Clone the repository and install Go dependencies:
 
 ```bash
 git clone https://github.com/caiodearaujo/uatzapi.git
@@ -68,11 +56,11 @@ cd uatzapi/api
 go mod tidy
 ```
 
-### Environment Variables (`.env`)
+## Environment Variables (`.env`)
 
-The system requires a `.env` file for configuration. This file contains all the necessary environment variables for connecting to the database and other services.
+The backend API requires a `.env` file for configuration. This file contains the necessary environment variables for connecting to the PostgreSQL database and managing API authentication.
 
-#### Example `.env` file:
+### Example `.env` file for Backend (`api/.env`):
 
 ```bash
 # PostgreSQL configuration
@@ -97,9 +85,27 @@ API_KEY_TOKEN=your_secure_token
 - **`PG_UA_SCHEMA`**: Database schema (usually `public`).
 - **`API_KEY_TOKEN`**: A secure token used for authenticating API requests.
 
+## Database Setup with Flyway
+
+The project uses Flyway to manage database migrations, and these migrations are handled using Docker Compose. The migration files are located in the `db/migrations` folder.
+
+### Running Migrations
+
+1. Make sure Docker is running.
+2. Navigate to the root directory of the project (`uatziapi`).
+3. Run the following command to bring up the PostgreSQL database and apply migrations:
+
+```bash
+docker-compose up
+```
+
+This command will start PostgreSQL and Flyway, automatically applying the migrations found in `db/migrations`.
+
+> **Note**: Flyway is configured in the `docker-compose.yml` file. It automatically runs the migrations on startup.
+
 ## API Routes
 
-The following API routes are provided for interacting with WhatsApp devices, sending messages, and handling webhooks:
+Here are the available API routes for managing WhatsApp devices, sending messages, and handling webhooks:
 
 | HTTP Method | Route                          | Description                                  |
 |-------------|--------------------------------|----------------------------------------------|
@@ -124,33 +130,15 @@ The following API routes are provided for interacting with WhatsApp devices, sen
 3. **DeviceWebhook**: Stores webhook URLs and statuses.
 4. **WebhookMessage**: Stores webhook interactions (messages sent and responses received).
 
-### Example Model:
-
-Here’s an example of how the `Device` model is structured:
-
-```go
-type Device struct {
-bun.BaseModel `bun:"table:device,alias:dvc"`
-ID            int       `json:"id" bun:"id,pk,autoincrement"`
-JID           string    `json:"whatsapp_id" bun:"whatsapp_id,notnull,unique"`
-PushName      string    `json:"push_name" bun:"push_name,notnull"`
-BusinessName  string    `json:"business_name" bun:"business_name"`
-Active        bool      `json:"active" bun:"active,notnull"`
-CreatedAt     time.Time `json:"created_at" bun:"created_at,notnull"`
-}
-```
+The models are located in the `api/data` directory and are managed by the Bun ORM.
 
 ### Database Setup
 
-The database is set up using the `Bun` ORM, and models are automatically created if they don't exist. You can create the tables by calling the `CreateTablesFromDataPkg()` function in the `store` package.
-
-```go
-store.CreateTablesFromDataPkg()
-```
+Flyway is responsible for applying migrations. You can find migration scripts inside the `db/migrations` directory. Ensure that you have PostgreSQL running via Docker Compose to apply migrations.
 
 ## Error Handling
 
-All errors are logged, and if critical, the application terminates gracefully using `FailOnError`. For example:
+All errors are logged, and if critical, the application terminates gracefully using the `FailOnError` function. This function logs errors and ensures they are handled appropriately:
 
 ```go
 package handler
@@ -168,11 +156,20 @@ log.Fatalf("%s: %s", msg, err)
 
 ## Running the Application
 
-1. Make sure your `.env` file is set up correctly.
-2. Run the following command to start the application:
+### Backend
+
+1. Ensure that your `.env` file is set up correctly inside the `api` folder.
+2. Start the database and apply migrations with Docker Compose:
 
 ```bash
+docker-compose up
+```
+
+3. Navigate to the `api` directory and run the Go application:
+
+```bash
+cd api
 go run main.go
 ```
 
-The application will start on port `8080` by default. You can test the API routes using tools like `curl` or Postman.
+The backend API will start on port `8080` by default.

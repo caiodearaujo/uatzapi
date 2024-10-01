@@ -1,13 +1,11 @@
 package store
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"sync"
 
-	"whatsgoingon/data"
 	"whatsgoingon/handler"
 
 	"github.com/uptrace/bun"
@@ -60,23 +58,4 @@ func GetBunConnection() *bun.DB {
 		bunInstance = bun.NewDB(pgDB, pgdialect.New())
 	})
 	return bunInstance
-}
-
-// CreateTablesFromDataPkg creates tables in the database based on the struct definitions from the `data` package.
-// If the table already exists, it will not be recreated (uses `IfNotExists()`).
-func CreateTablesFromDataPkg() {
-	// Fetch the list of structs from the `data` package that define the database tables.
-	structs := data.TablesPostgres()
-
-	// Get the Bun DB connection.
-	db := GetBunConnection()
-	ctx := context.Background()
-
-	// Iterate through the struct types and create tables for each one if they don't already exist.
-	for _, structType := range structs {
-		// Create the table using Bun's `NewCreateTable` function, with `IfNotExists` to avoid recreating existing tables.
-		if _, err := db.NewCreateTable().Model(structType).IfNotExists().Exec(ctx); err != nil {
-			handler.FailOnError(err, fmt.Sprintf("Failed to create table: %s", structType))
-		}
-	}
 }
