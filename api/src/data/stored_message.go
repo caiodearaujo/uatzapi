@@ -2,10 +2,11 @@ package data
 
 import (
 	"errors"
-	"go.mau.fi/whatsmeow"
-	"go.mau.fi/whatsmeow/types/events"
 	"log"
 	"time"
+
+	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/types/events"
 )
 
 // StoredMessage represents a message stored in the database.
@@ -26,15 +27,15 @@ type StoredMessage struct {
 // It extracts media or text content and assigns the appropriate fields in the StoredMessage.
 func ConvertEventToStoredMessage(v events.Message, client *whatsmeow.Client) (*StoredMessage, error) {
 	messageContent := StoredMessage{
-		MessageID:     v.Info.ID,
-		RecipientID:   v.Info.Chat.User,
-		Timestamp:     v.Info.Timestamp,
-		IsFromMe:      v.Info.IsFromMe,
-		IsFromGroup:   v.Info.IsGroup,
-		RecipientName: v.Info.PushName,
+		MessageID:     v.Info.ID,        // Unique identifier for the message
+		RecipientID:   v.Info.Chat.User, // WhatsApp ID of the recipient
+		Timestamp:     v.Info.Timestamp, // Timestamp when the message was sent/received
+		IsFromMe:      v.Info.IsFromMe,  // Indicates if the message was sent by the user
+		IsFromGroup:   v.Info.IsGroup,   // Indicates if the message belongs to a group chat
+		RecipientName: v.Info.PushName,  // Display name of the recipient
 	}
 
-	// Handling Image Messages
+	// Handle Image Messages
 	if v.Message.ImageMessage != nil {
 		messageContent.MediaType = "IMAGE"
 		if v.Message.ImageMessage.Caption != nil {
@@ -46,7 +47,7 @@ func ConvertEventToStoredMessage(v events.Message, client *whatsmeow.Client) (*S
 		return &messageContent, err
 	}
 
-	// Handling Video Messages
+	// Handle Video Messages
 	if v.Message.VideoMessage != nil {
 		messageContent.MediaType = "VIDEO"
 		messageContent.ContentMimeType = v.Message.VideoMessage.GetMimetype()
@@ -55,18 +56,17 @@ func ConvertEventToStoredMessage(v events.Message, client *whatsmeow.Client) (*S
 		return &messageContent, err
 	}
 
-	// Handling Audio Messages
+	// Handle Audio Messages
 	if v.Message.AudioMessage != nil {
 		messageContent.MediaType = "AUDIO"
 		messageContent.ContentMimeType = v.Message.AudioMessage.GetMimetype()
 		content, err := client.Download(v.Message.AudioMessage)
 		messageContent.Content = content
-		// This is a placeholder for potential speech-to-text functionality
-		messageContent.Text = "" // helpers.SpeechToText(genai.Blob{MIMEType: messageContent.ContentMimeType, Data: content})
+		messageContent.Text = "" // Placeholder for potential speech-to-text functionality
 		return &messageContent, err
 	}
 
-	// Handling Sticker Messages
+	// Handle Sticker Messages
 	if v.Message.StickerMessage != nil {
 		messageContent.MediaType = "STICKER"
 		messageContent.ContentMimeType = v.Message.StickerMessage.GetMimetype()
@@ -75,7 +75,7 @@ func ConvertEventToStoredMessage(v events.Message, client *whatsmeow.Client) (*S
 		return &messageContent, err
 	}
 
-	// Handling Document Messages
+	// Handle Document Messages
 	if v.Message.DocumentMessage != nil {
 		messageContent.MediaType = "DOCUMENT"
 		messageContent.ContentMimeType = v.Message.DocumentMessage.GetMimetype()
@@ -84,7 +84,7 @@ func ConvertEventToStoredMessage(v events.Message, client *whatsmeow.Client) (*S
 		return &messageContent, err
 	}
 
-	// Handling Text and Extended Text Messages
+	// Handle Text and Extended Text Messages
 	if v.Message.Conversation != nil {
 		messageContent.MediaType = "TEXT"
 		messageContent.Text = v.Message.GetConversation()
@@ -99,7 +99,7 @@ func ConvertEventToStoredMessage(v events.Message, client *whatsmeow.Client) (*S
 		return &messageContent, nil
 	}
 
-	// Handling Unrecognized Message Types
+	// Handle Unrecognized Message Types
 	if v.Message != nil {
 		messageContent.MediaType = "UNKNOWN"
 		messageContent.ContentMimeType = "text/plain"
