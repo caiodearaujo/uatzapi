@@ -1,28 +1,27 @@
 package store
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"sync"
 
-	"whatsgoingon/data"
 	"whatsgoingon/handler"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
-	_ "github.com/uptrace/bun/driver/pgdriver"
 )
 
 var (
-	dbOnce      sync.Once
-	bunInstance *bun.DB
+	dbOnce      sync.Once // Ensures that the connection is established only once (singleton).
+	bunInstance *bun.DB   // Global instance of bun.DB for database operations.
 )
 
-// Initialize PostgreSQL connection using environment variables.
+// getPostgresConnection initializes a PostgreSQL connection using environment variables.
+// Returns a *sql.DB connection or an error if the connection fails.
 func getPostgresConnection() (*sql.DB, error) {
+	// Fetch database configuration from environment variables.
 	dbUser := os.Getenv("PG_USERNAME")
 	dbPwd := os.Getenv("PG_PASSWORD")
 	dbTCPHost := os.Getenv("PG_HOSTNAME")
@@ -30,11 +29,14 @@ func getPostgresConnection() (*sql.DB, error) {
 	dbName := os.Getenv("PG_DATABASE")
 	dbSchema := os.Getenv("PG_UA_SCHEMA")
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?search_path=%s&sslmode=disable", dbUser, dbPwd, dbTCPHost, dbPort, dbName, dbSchema)
+	// Create a Data Source Name (DSN) using the provided environment variables.
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?search_path=%s&sslmode=disable",
+		dbUser, dbPwd, dbTCPHost, dbPort, dbName, dbSchema)
 
+	// Open a new connection to the PostgreSQL database using Bun's pgdriver.
 	db := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 
-	// Verify connection
+	// Verify the connection by pinging the database.
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %v", err)
 	}
@@ -42,28 +44,18 @@ func getPostgresConnection() (*sql.DB, error) {
 	return db, nil
 }
 
-// GetBunConnection returns a singleton instance of bun.DB for database operations.
+// GetBunConnection returns a singleton instance of *bun.DB for executing queries.
+// It uses sync.Once to ensure the connection is established only once during the application's lifetime.
 func GetBunConnection() *bun.DB {
+	// Ensure the database connection is created only once.
 	dbOnce.Do(func() {
 		pgDB, err := getPostgresConnection()
 		if err != nil {
+			// If there is an error establishing the connection, the application will fail.
 			handler.FailOnError(err, "Failed to connect to PostgreSQL")
 		}
+		// Initialize the Bun instance with the PostgreSQL dialect.
 		bunInstance = bun.NewDB(pgDB, pgdialect.New())
 	})
 	return bunInstance
-}
-
-// CreateTablesFromDataPkg creates tables from all structs in the `data` package
-func CreateTablesFromDataPkg() {
-	structs := data.TablesPostgres()
-
-	db := GetBunConnection()
-	ctx := context.Background()
-
-	for _, structType := range structs {
-		if _, err := db.NewCreateTable().Model(structType).IfNotExists().Exec(ctx); err != nil {
-			handler.FailOnError(err, fmt.Sprintf("Failed to create table: %s", structType))
-		}
-	}
 }

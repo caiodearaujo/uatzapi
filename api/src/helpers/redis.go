@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// WhatsAppMessageContentList represents the Redis database index to use.
 	WhatsAppMessageContentList = 0
 )
 
@@ -22,7 +23,8 @@ var (
 	redisOnce           sync.Once
 )
 
-// Get environment variable with a fallback value.
+// getEnv retrieves the value of the environment variable named by the key.
+// If the variable is not present, the function returns the fallback value provided.
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
@@ -30,52 +32,58 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// Initialize a Redis client once using the sync.Once pattern to ensure a singleton instance.
+// getRedisClient initializes and returns a Redis client using the singleton pattern.
+// The client is only created once during the application's lifetime.
 func getRedisClient() *redis.Client {
 	redisHostname := os.Getenv("REDIS_HOSTNAME")
 	redisPort := os.Getenv("REDIS_PORT")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 
+	// Ensure the Redis client is only initialized once.
 	redisOnce.Do(func() {
-		log.Info().Msg("Creating a new Redis client on dsn: " + redisHostname + ":" + redisPort)
+		log.Info().Msgf("Creating a new Redis client on dsn: %s:%s", redisHostname, redisPort)
 		redisClientInstance = redis.NewClient(&redis.Options{
 			Addr:     redisHostname + ":" + redisPort,
 			Password: redisPassword,
-			DB:       WhatsAppMessageContentList,
+			DB:       WhatsAppMessageContentList, // Use the specific Redis DB index for message content.
 		})
 	})
 
 	return redisClientInstance
 }
 
-// PingRedis checks if Redis is available by pinging the server.
+// PingRedis checks the connectivity to the Redis server by sending a ping request.
+// It returns an error if the Redis server is unreachable.
 func PingRedis(ctx context.Context) error {
 	client := getRedisClient()
-	return client.Ping(ctx).Err()
+	return client.Ping(ctx).Err() // Send a ping to Redis and return any errors.
 }
 
+// SendMessageToRedis pushes a message to a Redis list for a given device.
+// The message is first marshaled to JSON before being sent.
 func SendMessageToRedis(ctx context.Context, content data.StoredMessage, deviceID int) {
-	// Ping the Redis server and check if any errors occurred.
+	// Ping Redis to ensure it's reachable.
 	if err := PingRedis(ctx); err != nil {
 		handler.FailOnError(err, "Failed to ping Redis server")
 		return
 	}
 
-	// Create a new Redis client.
+	// Get the Redis client.
 	client := getRedisClient()
 
-	// Marshall content to JSON
+	// Marshal the message content to JSON format.
 	jsonContent, err := MarshalMessageToJSON(content)
 	if err != nil {
 		handler.FailOnError(err, "Failed to marshal content to JSON")
 		return
 	}
 
-	// Save the JSON to Redis using the client's Set method.
+	// Push the JSON content to a Redis list where the key is the device ID.
 	if err := client.RPush(ctx, strconv.Itoa(deviceID), jsonContent).Err(); err != nil {
-		handler.FailOnError(err, "Failed to save JSON to Redis")
+		handler.FailOnError(err, "Failed to push message to Redis")
 		return
 	}
 
-	log.Printf("Message sent to Redis successfully for deviceID: %s", deviceID)
+	// Log the success of the operation.
+	log.Printf("Message sent to Redis successfully for deviceID: %d", deviceID)
 }
