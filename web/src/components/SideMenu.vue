@@ -1,15 +1,15 @@
 <script lang="ts">
 import { defineComponent, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 export default defineComponent({
   setup() {
     const route = useRoute();
+    const router = useRouter(); // Para redirecionar após logout
 
     const items = ref<any[]>([
       { title: 'Dashboard', icon: 'mdi-view-dashboard', to: '/dashboard' },
       { title: 'Conectar', icon: 'mdi-qrcode-plus', to: '/connect' },
-      { title: 'Configurações', icon: 'mdi-cog', to: '/settings' },
     ]);
 
     const extraItems = ref<any[]>([]);
@@ -23,7 +23,17 @@ export default defineComponent({
       extraMenuName.value = typeof newRoute.name === 'string' ? newRoute.name : '';
     });
 
-    return { items, extraItems, extraMenuName, route };
+    // Função de logout
+    const logout = () => {
+      // Limpa os dados do localStorage
+      localStorage.removeItem('loginTime');
+      localStorage.removeItem('isLogged');
+      
+      // Redireciona para a página de login
+      router.push({ name: 'Login' });
+    };
+
+    return { items, extraItems, extraMenuName, route, logout };
   }
 });
 </script>
@@ -45,7 +55,8 @@ export default defineComponent({
         <v-list-item style="padding-left: 33px;" v-for="item in extraItems" :key="item.title" :to="{ name: item.to.name, params: { id: route.params.id } }"  :prepend-icon="item.icon" :value="item.title" :title="item.title"> </v-list-item>
       </template>
       <v-divider/>
-      <v-list-item prepend-icon="mdi-logout" title="Logout" value="logout"></v-list-item>
+      <!-- Botão de logout com a ação associada -->
+      <v-list-item prepend-icon="mdi-logout" title="Logout" value="logout" @click="logout"></v-list-item>
 
     </v-list>
   </v-navigation-drawer>

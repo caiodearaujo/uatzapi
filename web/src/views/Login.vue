@@ -37,8 +37,8 @@ export default {
   },
   methods: {
     login() {
-      const expectedUsername = "admin";
-      const expectedPassword = "admin";
+      const expectedUsername = import.meta.env.VITE_USER_USERNAME || 'admin';
+      const expectedPassword = import.meta.env.VITE_USER_PASSWORD || 'admin';
 
       if (this.username === expectedUsername && this.password === expectedPassword) {
         // Login bem-sucedido

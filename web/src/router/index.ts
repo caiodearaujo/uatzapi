@@ -10,7 +10,6 @@ import Dashboard from '@/views/Dashboard.vue'
 import Device from '@/views/Device.vue'
 import DeviceWebhook from '@/views/DeviceWebhook.vue'
 import Login from '@/views/Login.vue'
-import Settings from '@/views/Settings.vue'
 import { createRouter, createWebHistory } from 'vue-router/auto'
 
 const extraMenuItems = [
@@ -36,14 +35,6 @@ const routes = [
     path: "/connect",
     name: "Connect",
     component: Connect,
-    meta: {
-      requiresAuth: true,
-    },
-  },
-  {
-    path: "/settings",
-    name: "Settings",
-    component: Settings,
     meta: {
       requiresAuth: true,
     },
