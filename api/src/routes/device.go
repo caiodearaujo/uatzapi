@@ -31,7 +31,6 @@ func DeviceNew(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer client.Disconnect() // Ensure client is disconnected at the end
 
 	// Get QR code channel for WhatsApp client
 	qrChan, _ := client.GetQRChannel(context.Background())
