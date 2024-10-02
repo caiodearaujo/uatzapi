@@ -48,6 +48,8 @@ services:
       - POSTGRES_DB=uatzapi
     ports:
       - "5432:5432"
+    volumes:
+      - ./pg/data:/var/lib/postgresql/data
 
   flyway:
     build:
