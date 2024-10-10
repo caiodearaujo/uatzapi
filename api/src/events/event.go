@@ -1,7 +1,6 @@
 package events
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"time"
@@ -80,7 +79,7 @@ func StartMessageListener(whatsappID string) (*whatsmeow.Client, error) {
 	client.AddEventHandler(func(evt interface{}) {
 		switch event := evt.(type) {
 		case *events.Message:
-			handleMessageEvent(event, client, device.ID, webhookURL, webhookActive)
+			handleMessageEvent(event, client, device, webhookURL, webhookActive)
 		case *events.LoggedOut:
 			helpers.LogoutDeviceByJID(client.Store.ID.String())
 		}
@@ -92,8 +91,8 @@ func StartMessageListener(whatsappID string) (*whatsmeow.Client, error) {
 
 // handleMessageEvent processes incoming messages by storing them and sending them to Redis and Webhook.
 // It runs tasks concurrently for performance.
-func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, deviceID int, webhookURL string, webhookActive bool) {
-	ctx := context.Background()
+func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, device data.Device, webhookURL string, webhookActive bool) {
+	// ctx := context.Background()
 
 	// Convert the event to a stored message format.
 	content, err := data.ConvertEventToStoredMessage(*msgEvent, client)
@@ -103,8 +102,8 @@ func handleMessageEvent(msgEvent *events.Message, client *whatsmeow.Client, devi
 	}
 
 	// Send the message to Redis and Webhook concurrently.
-	go helpers.SendMessageToRedis(ctx, *content, deviceID)
-	go helpers.SendWebhook(*content, deviceID, webhookURL, webhookActive)
+	// go helpers.SendMessageToRedis(ctx, *content, device.ID)
+	go helpers.SendWebhook(*content, device, webhookURL, webhookActive, client)
 }
 
 // NewClientHandler returns a handler function that is triggered when the client connects.

@@ -21,6 +21,7 @@ type StoredMessage struct {
 	RecipientID     string    `firestore:"recipient_id" json:"recipient_id"`           // WhatsApp ID of the recipient
 	RecipientName   string    `firestore:"push_name" json:"push_name"`                 // Display name of the recipient
 	Timestamp       time.Time `firestore:"timestamp" json:"timestamp"`                 // Timestamp of the message
+	JID             string    `firestore:"jid" json:"jid"`
 }
 
 // ConvertEventToStoredMessage converts a WhatsApp event message into a StoredMessage structure.

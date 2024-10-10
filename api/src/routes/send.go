@@ -67,8 +67,10 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
+	client, _ := helpers.GetWhatsAppClientByJID(jid)
+
 	// Send the message using the helper function
-	resp, err := helpers.SendMessage(jid, requestBody.Message, requestBody.RecipientNumber)
+	resp, err := helpers.SendMessage(jid, requestBody.Message, requestBody.RecipientNumber, client)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send message", "details": err.Error()})
 		return

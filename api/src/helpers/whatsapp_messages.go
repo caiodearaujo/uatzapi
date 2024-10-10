@@ -14,14 +14,7 @@ import (
 
 // SendMessage sends a text message to a recipient using WhatsApp.
 // The function retrieves the WhatsApp client by JID, checks if the recipient number exists, and sends the message.
-func SendMessage(jid string, message string, recipient string) (*whatsmeow.SendResponse, error) {
-	// Retrieve WhatsApp client for the given JID.
-	client, err := GetWhatsAppClientByJID(jid)
-	if err != nil {
-		return nil, err
-	}
-	defer client.Disconnect()
-
+func SendMessage(jid string, message string, recipient string, client *whatsmeow.Client) (*whatsmeow.SendResponse, error) {
 	// Check if the recipient number exists and get its JID.
 	destination, err := CheckIfNumberExistsAndGetJID(recipient, client)
 	if err != nil {

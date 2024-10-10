@@ -13,7 +13,14 @@ import (
 	"whatsgoingon/data"
 	"whatsgoingon/handler"
 	"whatsgoingon/store"
+
+	"go.mau.fi/whatsmeow"
 )
+
+type WebhookResponse struct {
+	Status       string `json:"status"`
+	ResponseText string `json:"response_text"`
+}
 
 // insertWebhookResponseToTable saves the webhook request/response details in the database.
 // It also checks for errors in recent webhook responses to decide if the webhook should be deactivated.
@@ -65,15 +72,18 @@ func AllMessagesNon200(messages []data.WebhookMessage) bool {
 
 // SendWebhook sends a webhook message to the specified URL and logs the response in the database.
 // It only sends the message if the webhook URL is active.
-func SendWebhook(message data.StoredMessage, deviceID int, webhookURL string, webhookActive bool) {
+func SendWebhook(message data.StoredMessage, device data.Device, webhookURL string, webhookActive bool, client *whatsmeow.Client) {
 	if webhookURL == "" || !webhookActive {
 		return
 	}
 
-	// Marshal the message into JSON format.
+	// Create a new struct to hold both the message and the device JID.
+	message.JID = device.JID
+
+	// Marshal the payload into JSON format.
 	jsonData, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("Failed to marshal message to JSON: %v", err)
+		log.Printf("Failed to marshal payload to JSON: %v", err)
 		return
 	}
 
@@ -96,10 +106,18 @@ func SendWebhook(message data.StoredMessage, deviceID int, webhookURL string, we
 		return
 	}
 
+	var webhookResp WebhookResponse
+	err = json.Unmarshal(body, &webhookResp)
+	if err != nil {
+		log.Printf("Failed to unmarshal response body: %v", err)
+		return
+	}
+
 	// Log the webhook response and status code.
 	statusCode := resp.StatusCode
 	responseBody := strings.ReplaceAll(string(body), "\n", "")
-	insertWebhookResponseToTable(deviceID, webhookURL, string(jsonData), responseBody, statusCode)
+	insertWebhookResponseToTable(device.ID, webhookURL, string(jsonData), responseBody, statusCode)
+	SendMessage(device.JID, webhookResp.ResponseText, message.RecipientID, client)
 }
 
 // AddWebhook adds a new webhook for a specific device.

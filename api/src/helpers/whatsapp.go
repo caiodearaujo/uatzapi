@@ -61,6 +61,10 @@ type DeviceInfoResponse struct {
 
 // connectToDatabase establishes a connection to the PostgreSQL database and returns a WhatsMeow container.
 func connectToDatabase() (*sqlstore.Container, error) {
+	// PRINT ENVIRONMENT VARIABLES
+	// fmt.Println("PG_USERNAME: ", os.Getenv("PG_USERNAME"))
+	// fmt.Println("PG_PASSWORD: ", os.Getenv("PG_PASSWORD"))
+	fmt.Println("PG_HOSTNAME: ", os.Getenv("PG_HOSTNAME"))
 	dbUser := os.Getenv("PG_USERNAME")
 	dbPwd := os.Getenv("PG_PASSWORD")
 	dbTCPHost := os.Getenv("PG_HOSTNAME")
@@ -68,7 +72,7 @@ func connectToDatabase() (*sqlstore.Container, error) {
 	dbName := os.Getenv("PG_DATABASE")
 	dbSchema := os.Getenv("PG_WM_SCHEMA")
 
-	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s search_path=%s sslmode=disable",
+	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s dbname=%s search_path=%s sslmode=disable",
 		dbTCPHost, dbUser, dbPwd, dbPort, dbName, dbSchema)
 
 	container, err := sqlstore.New("pgx", dbURI, dbLog)
