@@ -15,6 +15,7 @@ import (
 	"github.com/skip2/go-qrcode"
 	"github.com/ztrue/tracerr"
 	"go.mau.fi/whatsmeow"
+	waStore "go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	waLog "go.mau.fi/whatsmeow/util/log"
@@ -41,22 +42,13 @@ type DeviceResponse struct {
 	Timestamp    time.Time `json:"timestamp"`
 }
 
-// ContactsResponse represents the contact information associated with a device.
-type ContactsResponse struct {
-	Name           string `json:"name"`
-	Number         string `json:"number"`
-	ProfilePicture string `json:"profile_picture"`
-}
-
 // DeviceInfoResponse is the detailed response structure for device information.
 type DeviceInfoResponse struct {
-	DeviceID         int                `json:"device_id"`
-	ProfilePicture   string             `json:"profile_picture"`
-	Webhook          string             `json:"webhook"`
-	PhoneNumber      string             `json:"phone_number"`
-	PushName         string             `json:"push_name"`
-	BusinessName     string             `json:"business_name"`
-	ContactsResponse []ContactsResponse `json:"contacts"`
+	DeviceID     int    `json:"device_id"`
+	Webhook      string `json:"webhook"`
+	PhoneNumber  string `json:"phone_number"`
+	PushName     string `json:"push_name"`
+	BusinessName string `json:"business_name"`
 }
 
 // connectToDatabase establishes a connection to the PostgreSQL database and returns a WhatsMeow container.
@@ -78,24 +70,30 @@ func connectToDatabase() (*sqlstore.Container, error) {
 	return container, nil
 }
 
-// GetWhatsAppClientByJID retrieves a WhatsApp client by its JID (WhatsApp ID).
-func GetWhatsAppClientByJID(whatsappID string) (*whatsmeow.Client, error) {
+// GetDeviceStoreByJID retrieves the device store (store.Device) by its JID (WhatsApp ID).
+func GetDeviceStoreByJID(whatsappID string) (*waStore.Device, error) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
-	container, err := connectToDatabase()
+	container, err := connectToDatabase() // Conexão com o banco de dados
 	if err != nil {
 		return nil, err
 	}
 
 	jid, _ := types.ParseJID(whatsappID)
 
-	deviceStore, err := container.GetDevice(jid)
+	deviceStore, err := container.GetDevice(jid) // Supondo que retorna *store.Device
 	if err != nil {
 		return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrDeviceNotFound, err))
 	}
 
-	client := whatsmeow.NewClient(deviceStore, wmLog)
+	return deviceStore, nil
+}
+
+// GetWhatsAppClientByDeviceStore retrieves a WhatsApp client using the store.Device.
+func GetWhatsAppClientByDeviceStore(deviceStore *waStore.Device) (*whatsmeow.Client, error) {
+	client := whatsmeow.NewClient(deviceStore, wmLog) // Passa o store.Device
+
 	if client.Store.ID == nil {
 		return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrClientConnection, client.Store.ID))
 	}
@@ -106,6 +104,24 @@ func GetWhatsAppClientByJID(whatsappID string) (*whatsmeow.Client, error) {
 			return nil, tracerr.Wrap(fmt.Errorf("%w: %v", ErrClientConnection, err))
 		}
 	}
+
+	return client, nil
+}
+
+// GetWhatsAppClientByJID retrieves a WhatsApp client by its JID (WhatsApp ID).
+func GetWhatsAppClientByJID(whatsappID string) (*whatsmeow.Client, error) {
+	// Obter o device store
+	deviceStore, err := GetDeviceStoreByJID(whatsappID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Obter o client usando o device store
+	client, err := GetWhatsAppClientByDeviceStore(deviceStore)
+	if err != nil {
+		return nil, err
+	}
+
 	return client, nil
 }
 
@@ -230,51 +246,6 @@ func GenerateQRCode(qrCode string) (string, error) {
 func GetClientInfo(deviceID int, client *whatsmeow.Client) DeviceInfoResponse {
 	clientJID := types.NewJID(client.Store.ID.User, types.DefaultUserServer)
 
-	// Get the profile picture of the client.
-	picInfo, _ := client.GetProfilePictureInfo(clientJID, nil)
-	var picURL string
-	if picInfo != nil {
-		picURL = picInfo.URL
-	}
-
-	// Get all contacts of the client.
-	contacts, _ := client.Store.Contacts.GetAllContacts()
-	var contactsResponse []ContactsResponse
-
-	var wg sync.WaitGroup
-	var mu sync.Mutex // Protects concurrent access to contactsResponse
-
-	// Function to process each contact and add it to the response.
-	processContact := func(key types.JID, contact types.ContactInfo) {
-		defer wg.Done()
-
-		contactName := contact.PushName
-		if contactName == "" {
-			contactName = contact.BusinessName
-		}
-
-		picContact, _ := client.GetProfilePictureInfo(key, nil)
-		var contactProfileURL string
-		if picContact != nil {
-			contactProfileURL = picContact.URL
-		}
-
-		mu.Lock()
-		contactsResponse = append(contactsResponse, ContactsResponse{
-			Name:           contactName,
-			Number:         key.User,
-			ProfilePicture: contactProfileURL,
-		})
-		mu.Unlock()
-	}
-
-	for key, contact := range contacts {
-		wg.Add(1)
-		go processContact(key, contact)
-	}
-
-	wg.Wait()
-
 	// Retrieve the active webhook URL for the device.
 	var webhookURL string
 	if webhook, err := GetWebhookActiveByDeviceID(deviceID); err == nil {
@@ -283,12 +254,10 @@ func GetClientInfo(deviceID int, client *whatsmeow.Client) DeviceInfoResponse {
 
 	// Return device information response.
 	return DeviceInfoResponse{
-		DeviceID:         deviceID,
-		ProfilePicture:   picURL,
-		Webhook:          webhookURL,
-		PhoneNumber:      clientJID.User,
-		PushName:         client.Store.PushName,
-		BusinessName:     client.Store.BusinessName,
-		ContactsResponse: contactsResponse,
+		DeviceID:     deviceID,
+		Webhook:      webhookURL,
+		PhoneNumber:  clientJID.User,
+		PushName:     client.Store.PushName,
+		BusinessName: client.Store.BusinessName,
 	}
 }
