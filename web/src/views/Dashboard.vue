@@ -16,6 +16,9 @@ onMounted(async () => {
       },
     });
 
+    if (response.data === null) {
+      response.data = [];
+    }
     devices.value = Array.isArray(response.data)
       ? response.data.map((deviceData: any) => new Device(deviceData))
       : [];
@@ -56,7 +59,7 @@ onMounted(async () => {
         <v-container v-else-if="noDevices">
           <v-banner color="warning" icon="mdi-alert">
             <template v-slot:actions>
-              <v-btn text @click="() => $router.push({ name: 'Connect' })">
+              <v-btn @click="() => $router.push({ name: 'Connect' })">
                 Conectar novo dispositivo
               </v-btn>
             </template>

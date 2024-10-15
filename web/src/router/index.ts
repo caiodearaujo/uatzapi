@@ -8,13 +8,12 @@
 import Connect from '@/views/Connect.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import Device from '@/views/Device.vue'
-import DeviceWebhook from '@/views/DeviceWebhook.vue'
 import Login from '@/views/Login.vue'
 import { createRouter, createWebHistory } from 'vue-router/auto'
 
 const extraMenuItems = [
   { title: 'Device', icon: 'mdi-cellphone', to: { name: 'Device' } },
-  { title: 'Webhook', icon: 'mdi-webhook', to: { name: 'DeviceWebhook' } },
+  // { title: 'Webhook', icon: 'mdi-webhook', to: { name: 'DeviceWebhook' } },
   // { title: 'A.I.', icon: 'mdi-robot-happy', to: { name: 'DeviceAI' } },
   // { title: 'Histórico', icon: 'mdi-history', to: { name: 'DeviceHistoric' } },
   // { title: 'Estatística', icon: 'mdi-chart-box-outline', to: { name: 'DeviceNerd' } }, // Corrected name
@@ -53,15 +52,6 @@ const routes = [
     path: "/device/:id",
     name: "Device",
     component: Device,
-    meta: {
-      requiresAuth: true,
-      extraMenuItems: extraMenuItems,
-    },
-  },
-  {
-    path: "/device/:id/webhook",
-    name: "DeviceWebhook",
-    component: DeviceWebhook,
     meta: {
       requiresAuth: true,
       extraMenuItems: extraMenuItems,
